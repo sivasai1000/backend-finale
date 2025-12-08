@@ -201,4 +201,89 @@ const changePassword = async (req, res) => {
     }
 };
 
-module.exports = { register, login, changePassword };
+const crypto = require('crypto');
+
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ status: "failed", message: "Email is required" });
+        }
+
+        const [rows] = await pool.query("SELECT * FROM Users WHERE email = ?", [email]);
+        if (rows.length === 0) {
+            return res.status(404).json({ status: "failed", message: "User not found" });
+        }
+
+        const user = rows[0];
+
+        // Generate Token
+        const resetToken = crypto.randomBytes(32).toString('hex');
+
+        // Hash token (optional for DB security, but raw check works for simple mocks)
+        // Let's store raw token for simplicity or hash it if high security needed.
+        // Standard practice: store hash in DB, send raw in email.
+        const resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+        const resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+        await pool.query(
+            "UPDATE Users SET resetPasswordToken = ?, resetPasswordExpires = ? WHERE id = ?",
+            [resetPasswordToken, resetPasswordExpires, user.id]
+        );
+
+        // In real app, send email here.
+        // For now, return token directly for testing/local dev.
+
+        // Construct reset URL for frontend
+        const resetUrl = `http://localhost:3000/reset-password?token=${resetToken}`;
+
+        return res.status(200).json({
+            status: "success",
+            message: "Reset token generated",
+            resetToken: resetToken, // EXPOSING FOR TESTING ONLY
+            resetUrl // Helper
+        });
+
+    } catch (e) {
+        console.error("Forgot password error:", e.message);
+        return res.status(500).json({ status: "failed", message: "Server error" });
+    }
+};
+
+const resetPassword = async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+        if (!token || !newPassword) {
+            return res.status(400).json({ status: "failed", message: "Token and new password required" });
+        }
+
+        // Hash token to compare with DB
+        const resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
+
+        const [rows] = await pool.query(
+            "SELECT * FROM Users WHERE resetPasswordToken = ? AND resetPasswordExpires > ?",
+            [resetPasswordToken, Date.now()]
+        );
+
+        if (rows.length === 0) {
+            return res.status(400).json({ status: "failed", message: "Invalid or expired token" });
+        }
+
+        const user = rows[0];
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update password and clear columns
+        await pool.query(
+            "UPDATE Users SET password = ?, resetPasswordToken = NULL, resetPasswordExpires = NULL WHERE id = ?",
+            [hashedPassword, user.id]
+        );
+
+        return res.status(200).json({ status: "success", message: "Password reset successfully" });
+
+    } catch (e) {
+        console.error("Reset password error:", e.message);
+        return res.status(500).json({ status: "failed", message: "Server error" });
+    }
+};
+
+module.exports = { register, login, changePassword, forgotPassword, resetPassword };
