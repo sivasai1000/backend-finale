@@ -70,6 +70,12 @@ async function verifyTables() {
             await connection.query("ALTER TABLE Orders ADD COLUMN paymentId VARCHAR(255)");
         }
 
+        const hasUpdatedAt = orderColumns.some(col => col.Field === 'updatedAt');
+        if (!hasUpdatedAt) {
+            console.log("Migrating Orders: Adding 'updatedAt' column...");
+            await connection.query("ALTER TABLE Orders ADD COLUMN updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+        }
+
         // 5. Check OrderItems Table
         await connection.query(`
             CREATE TABLE IF NOT EXISTS OrderItems (
@@ -84,6 +90,14 @@ async function verifyTables() {
                 FOREIGN KEY (productId) REFERENCES Products(id) ON DELETE CASCADE
             )
         `);
+
+        // Check OrderItems for extra columns if table exists
+        const [itemColumns] = await connection.query("SHOW COLUMNS FROM OrderItems");
+        const hasItemsUpdatedAt = itemColumns.some(col => col.Field === 'updatedAt');
+        if (!hasItemsUpdatedAt) {
+            console.log("Migrating OrderItems: Adding 'updatedAt' column...");
+            await connection.query("ALTER TABLE OrderItems ADD COLUMN updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+        }
 
         // 6. Check Products Table Columns (Migration for isFeatured, addedBy)
         const [productColumns] = await connection.query("SHOW COLUMNS FROM Products");
