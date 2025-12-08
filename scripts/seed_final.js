@@ -2,13 +2,6 @@ const mysql = require('mysql2/promise');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-console.log('Environment Variables Loaded:', {
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    db: process.env.DB_NAME,
-    passLength: process.env.DB_PASS ? process.env.DB_PASS.length : 0
-});
-
 const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
@@ -191,12 +184,25 @@ async function seedDatabase() {
     let connection;
     try {
         console.log('Connecting to database...');
-        // Do not verify connection config here to avoid leaking secrets in logs if failed
+        console.log('Use Config:', { ...dbConfig, password: '****' });
         connection = await mysql.createConnection(dbConfig);
         console.log('Connected!');
 
-        // 1. Ensure Tables Exist (DDL)
-        console.log('Ensuring tables exist...');
+        console.log('Disabling Foreign Key Checks...');
+        await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+
+        console.log('Cleaning up old tables (Dropping except Users)...');
+        await connection.query('DROP TABLE IF EXISTS OrderItems');
+        await connection.query('DROP TABLE IF EXISTS FeaturedProducts');
+        await connection.query('DROP TABLE IF EXISTS Reviews');
+        await connection.query('DROP TABLE IF EXISTS Orders');
+        await connection.query('DROP TABLE IF EXISTS Products');
+        await connection.query('DROP TABLE IF EXISTS Blogs');
+        await connection.query('DROP TABLE IF EXISTS Pages');
+        await connection.query('DROP TABLE IF EXISTS Banners');
+
+        console.log('Creating tables...');
+
         await connection.query(`
             CREATE TABLE IF NOT EXISTS Users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -209,7 +215,7 @@ async function seedDatabase() {
         `);
 
         await connection.query(`
-            CREATE TABLE IF NOT EXISTS Banners (
+            CREATE TABLE Banners (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 title VARCHAR(255),
                 subtitle VARCHAR(255),
@@ -219,7 +225,7 @@ async function seedDatabase() {
         `);
 
         await connection.query(`
-            CREATE TABLE IF NOT EXISTS Pages (
+            CREATE TABLE Pages (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 slug VARCHAR(50) UNIQUE,
                 title VARCHAR(255),
@@ -228,7 +234,7 @@ async function seedDatabase() {
         `);
 
         await connection.query(`
-            CREATE TABLE IF NOT EXISTS Blogs (
+            CREATE TABLE Blogs (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 title VARCHAR(255),
                 content TEXT,
@@ -239,7 +245,7 @@ async function seedDatabase() {
         `);
 
         await connection.query(`
-            CREATE TABLE IF NOT EXISTS Products (
+            CREATE TABLE Products (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(255),
                 description TEXT,
@@ -258,7 +264,7 @@ async function seedDatabase() {
         `);
 
         await connection.query(`
-            CREATE TABLE IF NOT EXISTS FeaturedProducts (
+            CREATE TABLE FeaturedProducts (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 productId INT,
                 FOREIGN KEY (productId) REFERENCES Products(id) ON DELETE CASCADE
@@ -266,7 +272,7 @@ async function seedDatabase() {
         `);
 
         await connection.query(`
-            CREATE TABLE IF NOT EXISTS Reviews (
+            CREATE TABLE Reviews (
                  id INT AUTO_INCREMENT PRIMARY KEY,
                  userId INT,
                  productId INT,
@@ -278,7 +284,7 @@ async function seedDatabase() {
         `);
 
         await connection.query(`
-            CREATE TABLE IF NOT EXISTS Orders (
+            CREATE TABLE Orders (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 userId INT,
                 items JSON,
@@ -291,7 +297,7 @@ async function seedDatabase() {
         `);
 
         await connection.query(`
-            CREATE TABLE IF NOT EXISTS OrderItems (
+            CREATE TABLE OrderItems (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 orderId INT,
                 productId INT,
@@ -301,68 +307,63 @@ async function seedDatabase() {
             )
         `);
 
-        // 2. Get a User ID (for addedBy/author)
+        console.log('Tables created.');
+
+        // Get User ID
         const [users] = await connection.execute('SELECT id FROM Users LIMIT 1');
-        let adminId = 1; // Default
+        let adminId = 1;
         if (users.length > 0) {
             adminId = users[0].id;
         } else {
-            // Create admin if missing
+            console.log("Creating default admin user...");
             const [res] = await connection.execute("INSERT INTO Users (name, email, password, role) VALUES ('Admin', 'admin@example.com', 'hashedpassword', 'admin')");
             adminId = res.insertId;
         }
 
-        // 3. Clean Tables
-        await connection.query('SET FOREIGN_KEY_CHECKS = 0');
-        console.log('Truncating tables...');
-
-        await connection.query('DELETE FROM OrderItems');
-        await connection.query('DELETE FROM Orders');
-        await connection.query('TRUNCATE TABLE Reviews');
-        await connection.query('TRUNCATE TABLE FeaturedProducts');
-        await connection.query('TRUNCATE TABLE Banners');
-        await connection.query('TRUNCATE TABLE Blogs');
-        await connection.query('TRUNCATE TABLE Pages');
-        await connection.query('TRUNCATE TABLE Products');
-
-        await connection.query('SET FOREIGN_KEY_CHECKS = 1');
-
-        // 4. Insert Banners
+        // Insert Banners
         console.log('Seeding Banners...');
         for (const banner of bannersData) {
-            await connection.execute(
-                'INSERT INTO Banners (title, subtitle, imageUrl, linkUrl) VALUES (?, ?, ?, ?)',
-                [banner.title, banner.subtitle, banner.imageUrl, banner.linkUrl]
-            );
+            try {
+                await connection.execute(
+                    'INSERT INTO Banners (title, subtitle, imageUrl, linkUrl) VALUES (?, ?, ?, ?)',
+                    [banner.title, banner.subtitle, banner.imageUrl, banner.linkUrl]
+                );
+            } catch (e) { console.error("Error inserting Banner:", e.message); }
         }
 
-        // 5. Insert Pages
+        // Insert Pages
         console.log('Seeding Pages...');
         for (const page of pagesData) {
-            await connection.execute(
-                'INSERT INTO Pages (slug, title, content) VALUES (?, ?, ?)',
-                [page.slug, page.title, page.content]
-            );
+            try {
+                await connection.execute(
+                    'INSERT INTO Pages (slug, title, content) VALUES (?, ?, ?)',
+                    [page.slug, page.title, page.content]
+                );
+            } catch (e) { console.error("Error inserting Page:", e.message); }
         }
 
-        // 6. Insert Blogs
+        // Insert Blogs
         console.log('Seeding Blogs...');
         for (const blog of blogsData) {
-            await connection.execute(
-                'INSERT INTO Blogs (title, content, imageUrl, author) VALUES (?, ?, ?, ?)',
-                [blog.title, blog.content, blog.imageUrl, blog.author]
-            );
+            try {
+                await connection.execute(
+                    'INSERT INTO Blogs (title, content, imageUrl, author) VALUES (?, ?, ?, ?)',
+                    [blog.title, blog.content, blog.imageUrl, blog.author]
+                );
+            } catch (e) { console.error("Error inserting Blog:", e.message); }
         }
 
-        // 7. Insert Products
+        // Insert Products
         console.log('Seeding Products...');
         for (const p of productsData) {
-            await connection.execute(
-                `INSERT INTO Products 
-                (name, description, price, mrp, discount, category, subcategory, imageUrl, stock, isFeatured, addedBy, createdAt, updatedAt) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-                [p.name, p.description, p.price, p.mrp, p.discount, p.category, p.subcategory, p.imageUrl, p.stock, p.isFeatured, adminId]
-            );
+            try {
+                await connection.execute(
+                    `INSERT INTO Products 
+                    (name, description, price, mrp, discount, category, subcategory, imageUrl, stock, isFeatured, addedBy, createdAt, updatedAt) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+                    [p.name, p.description, p.price, p.mrp, p.discount, p.category, p.subcategory, p.imageUrl, p.stock, p.isFeatured, adminId]
+                );
+            } catch (e) { console.error("Error inserting Product:", e.message); }
         }
 
         console.log('Database seeded successfully!');
