@@ -17,14 +17,19 @@ const userRoutes = require('./routes/users');
 const orderRoutes = require('./routes/orders');
 const wishlistRoutes = require('./routes/wishlist');
 const couponRoutes = require('./routes/coupons');
+const faqRoutes = require('./routes/faqs');
+const pageRoutes = require('./routes/pages');
+const contactRoutes = require('./routes/contact');
+const privacyRoutes = require('./routes/privacy');
+const shippingRoutes = require('./routes/shipping');
+const termsRoutes = require('./routes/terms');
+const reviewRoutes = require('./routes/reviews');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 
 // Global User Identification Middleware (Direct SQL)
 app.use(async (req, res, next) => {
@@ -69,6 +74,30 @@ app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/coupons', couponRoutes);
+app.use('/api/faqs', faqRoutes);
+app.use('/api/pages', pageRoutes);
+app.use('/api/contact', contactRoutes);
+app.use('/api/privacy', privacyRoutes);
+app.use('/api/shipping', shippingRoutes);
+app.use('/api/terms', termsRoutes);
+app.use('/api/reviews', reviewRoutes);
+
+// Marketing Routes
+const marketingController = require('./controllers/marketingController');
+const { protect, admin } = require('./middleware/auth');
+const upload = require('./middleware/upload'); // Import upload middleware
+
+app.get('/api/banners', marketingController.getBanners);
+app.post('/api/newsletter/subscribe', marketingController.subscribeNewsletter);
+
+// Admin Marketing Routes
+app.post('/api/admin/banners', protect, admin, upload.single('image'), marketingController.createBanner);
+app.delete('/api/admin/banners/:id', protect, admin, marketingController.deleteBanner);
+app.get('/api/admin/subscribers', protect, admin, marketingController.getAllSubscribers);
+
+// About Us Routes
+app.get('/api/about', marketingController.getAbout);
+app.put('/api/admin/about', protect, admin, upload.single('image'), marketingController.updateAbout);
 
 // Static uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

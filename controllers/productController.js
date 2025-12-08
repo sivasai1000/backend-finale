@@ -2,7 +2,7 @@ const pool = require('../config/database');
 
 exports.getAllProducts = async (req, res) => {
     try {
-        const { category, subcategory, minPrice, maxPrice, search } = req.query;
+        const { category, subcategory, minPrice, maxPrice, search, isFeatured } = req.query;
 
         let sql = `
             SELECT p.*, u.id as creatorId, u.name as creatorName, u.email as creatorEmail 
@@ -20,6 +20,11 @@ exports.getAllProducts = async (req, res) => {
         if (subcategory) {
             sql += ' AND p.subcategory = ?';
             params.push(subcategory);
+        }
+
+        if (isFeatured) {
+            sql += ' AND p.isFeatured = ?';
+            params.push(isFeatured === 'true' ? 1 : 0);
         }
 
         if (minPrice) {
@@ -120,38 +125,30 @@ exports.getCategories = async (req, res) => {
 exports.createProduct = async (req, res) => {
     try {
         const {
-            name, description, price, mrp, discount, category, subcategory, stock
+            name, description, price, mrp, discount, category, subcategory, stock, isFeatured
         } = req.body;
-
-        // Log the file object to inspect it
-        // console.log("File uploaded:", req.file);
 
         let imageUrl = null;
         if (req.file) {
-            // Check if Cloudinary is used (path is URL) or local storage
             if (req.file.path.startsWith('http')) {
                 imageUrl = req.file.path;
             } else {
-                // If local upload, construct URL 
-                // Assuming 'uploads' is served statically
                 imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
             }
         }
 
-        // Handle case where addedBy might not be in req.user if called from elsewhere?
-        // But route is protected.
         const addedBy = req.user ? req.user.id : null;
 
         const [result] = await pool.query(
             `INSERT INTO Products 
-            (name, description, price, mrp, discount, imageUrl, category, subcategory, stock, addedBy, createdAt, updatedAt) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-            [name, description, price, mrp, discount, imageUrl, category || null, subcategory || null, stock, addedBy]
+            (name, description, price, mrp, discount, imageUrl, category, subcategory, stock, isFeatured, addedBy, createdAt, updatedAt) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+            [name, description, price, mrp, discount, imageUrl, category || null, subcategory || null, stock, isFeatured ? 1 : 0, addedBy]
         );
 
         const newProduct = {
             id: result.insertId,
-            name, description, price, mrp, discount, imageUrl, category, stock, addedBy
+            name, description, price, mrp, discount, imageUrl, category, stock, isFeatured, addedBy
         };
 
         res.status(201).json(newProduct);
@@ -163,7 +160,6 @@ exports.createProduct = async (req, res) => {
 
 exports.updateProduct = async (req, res) => {
     try {
-        // First check existence
         const [rows] = await pool.query('SELECT * FROM Products WHERE id = ?', [req.params.id]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'Product not found' });
@@ -171,7 +167,7 @@ exports.updateProduct = async (req, res) => {
         const product = rows[0];
 
         const {
-            name, description, price, mrp, discount, category, subcategory, stock
+            name, description, price, mrp, discount, category, subcategory, stock, isFeatured
         } = req.body;
 
         let imageUrl = product.imageUrl;
@@ -186,12 +182,11 @@ exports.updateProduct = async (req, res) => {
         await pool.query(
             `UPDATE Products SET 
             name = ?, description = ?, price = ?, mrp = ?, discount = ?, 
-            imageUrl = ?, category = ?, subcategory = ?, stock = ?, updatedAt = NOW() 
+            imageUrl = ?, category = ?, subcategory = ?, stock = ?, isFeatured = ?, updatedAt = NOW() 
             WHERE id = ?`,
-            [name, description, price, mrp, discount, imageUrl, category || null, subcategory || null, stock, req.params.id]
+            [name, description, price, mrp, discount, imageUrl, category || null, subcategory || null, stock, isFeatured ? 1 : 0, req.params.id]
         );
 
-        // Fetch updated
         const [updatedRows] = await pool.query('SELECT * FROM Products WHERE id = ?', [req.params.id]);
         res.json(updatedRows[0]);
     } catch (error) {
@@ -217,8 +212,6 @@ exports.deleteProduct = async (req, res) => {
 
 exports.getFamousProducts = async (req, res) => {
     try {
-        // Find top selling products by aggregating sum of quantity from OrderItems
-        // Direct SQL for aggregation
         const sql = `
             SELECT p.*, SUM(oi.quantity) as totalSold 
             FROM OrderItems oi 
