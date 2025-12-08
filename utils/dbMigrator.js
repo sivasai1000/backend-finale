@@ -10,6 +10,7 @@ async function verifyTables() {
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 productId INT NOT NULL,
                 userId INT NOT NULL,
+                orderId INT,
                 rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
                 comment TEXT,
                 status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
@@ -18,6 +19,14 @@ async function verifyTables() {
                 FOREIGN KEY (userId) REFERENCES Users(id) ON DELETE CASCADE
             )
         `);
+
+        // Check Reviews for orderId column
+        const [reviewColumns] = await connection.query("SHOW COLUMNS FROM Reviews");
+        const hasOrderId = reviewColumns.some(col => col.Field === 'orderId');
+        if (!hasOrderId) {
+            console.log("Migrating Reviews: Adding 'orderId' column...");
+            await connection.query("ALTER TABLE Reviews ADD COLUMN orderId INT NULL AFTER userId");
+        }
 
         // 2. Check Pages Table (for Terms, Privacy, etc.)
         await connection.query(`

@@ -95,16 +95,17 @@ exports.getAllOrders = async (req, res) => {
             SELECT o.*, 
                    u.name as userName, u.email as userEmail,
                    oi.id as itemId, oi.productId, oi.quantity, oi.price as itemPrice,
-                   p.name as productName, p.price as productPrice, p.imageUrl as productImageUrl
+                   p.name as productName, p.price as productPrice, p.imageUrl as productImageUrl,
+                   r.id as reviewId
             FROM Orders o
             LEFT JOIN Users u ON o.userId = u.id
             LEFT JOIN OrderItems oi ON o.id = oi.orderId
             LEFT JOIN Products p ON oi.productId = p.id
+            LEFT JOIN Reviews r ON r.orderId = o.id AND r.productId = oi.productId
         `;
 
+        // ... existing params logic ... 
         const params = [];
-
-        // If NOT admin, scope to user
         const isAdmin = user && (user.role === 'admin' || user.role === 'Admin');
         if (!isAdmin) {
             sql += ' WHERE o.userId = ?';
@@ -135,17 +136,27 @@ exports.getAllOrders = async (req, res) => {
             }
 
             if (row.itemId) {
-                ordersMap.get(row.id).OrderItems.push({
-                    id: row.itemId,
-                    productId: row.productId,
-                    quantity: row.quantity,
-                    price: row.itemPrice,
-                    Product: {
-                        name: row.productName,
-                        price: row.productPrice,
-                        imageUrl: row.productImageUrl
-                    }
-                });
+                // Check if already in list to avoid duplicates due to multiple reviews? 
+                // Wait, one review per product-order pair usually. 
+                // But left join reviews could multiply rows if multiple reviews exist (which we allow generally but here we want status).
+                // Actually if there are multiple reviews, rows will duplicate. We should handle unique OrderItems.
+                const existingItem = ordersMap.get(row.id).OrderItems.find(i => i.id === row.itemId);
+                if (!existingItem) {
+                    ordersMap.get(row.id).OrderItems.push({
+                        id: row.itemId,
+                        productId: row.productId,
+                        quantity: row.quantity,
+                        price: row.itemPrice,
+                        isReviewed: !!row.reviewId, // True if review exists
+                        Product: {
+                            name: row.productName,
+                            price: row.productPrice,
+                            imageUrl: row.productImageUrl
+                        }
+                    });
+                } else if (row.reviewId && !existingItem.isReviewed) {
+                    existingItem.isReviewed = true;
+                }
             }
         }
 

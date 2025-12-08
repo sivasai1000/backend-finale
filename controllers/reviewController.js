@@ -2,7 +2,7 @@ const pool = require('../config/database');
 
 exports.createReview = async (req, res) => {
     try {
-        const { productId, rating, comment } = req.body;
+        const { productId, rating, comment, orderId } = req.body;
         const userId = req.user.id; // From auth middleware
 
         if (!productId || !rating) {
@@ -10,24 +10,35 @@ exports.createReview = async (req, res) => {
         }
 
         // Check for verified purchase (Completed Order)
-        const [orders] = await pool.query(`
-            SELECT oi.id 
+        let query = `
+            SELECT oi.id, o.id as orderId
             FROM OrderItems oi
             JOIN Orders o ON oi.orderId = o.id
             WHERE o.userId = ? 
             AND oi.productId = ? 
             AND o.status = 'completed'
-            LIMIT 1
-        `, [userId, productId]);
+        `;
+        const params = [userId, productId];
+
+        if (orderId) {
+            query += ' AND o.id = ?';
+            params.push(orderId);
+        }
+
+        query += ' LIMIT 1';
+
+        const [orders] = await pool.query(query, params);
 
         if (orders.length === 0) {
             return res.status(403).json({ message: 'You can only review products you have purchased and received.' });
         }
 
+        // Use the validated orderId
+        const validOrderId = orders[0].orderId;
 
         await pool.query(
-            'INSERT INTO Reviews (productId, userId, rating, comment, status, createdAt) VALUES (?, ?, ?, ?, ?, NOW())',
-            [productId, userId, rating, comment, 'pending']
+            'INSERT INTO Reviews (productId, userId, rating, comment, status, createdAt, orderId) VALUES (?, ?, ?, ?, ?, NOW(), ?)',
+            [productId, userId, rating, comment, 'pending', validOrderId]
         );
 
         res.status(201).json({ message: 'Review submitted successfully and is pending approval.' });
