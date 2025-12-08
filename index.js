@@ -107,11 +107,16 @@ app.get('/', (req, res) => {
     res.send('API is running...');
 });
 
+const verifyTables = require('./utils/dbMigrator');
+
 // Start Server with DB Check
 async function startServer() {
     try {
         await pool.query('SELECT 1');
         console.log('Database connected (mysql2 pool)');
+
+        // Run Auto-Migrations
+        await verifyTables();
 
         app.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
