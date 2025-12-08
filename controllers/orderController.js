@@ -49,7 +49,7 @@ exports.placeOrder = async (req, res) => {
         });
     } catch (error) {
         console.error('Error placing order:', error);
-        res.status(500).json({ message: 'Server error placing order' });
+        res.status(500).json({ message: error.message || 'Server error placing order', stack: error.stack });
     }
 };
 
