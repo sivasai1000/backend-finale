@@ -24,6 +24,7 @@ const privacyRoutes = require('./routes/privacy');
 const shippingRoutes = require('./routes/shipping');
 const termsRoutes = require('./routes/terms');
 const reviewRoutes = require('./routes/reviews');
+const newsletterRoutes = require('./routes/newsletter');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -81,6 +82,7 @@ app.use('/api/privacy', privacyRoutes);
 app.use('/api/shipping', shippingRoutes);
 app.use('/api/terms', termsRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/newsletter', newsletterRoutes);
 
 // Marketing Routes
 const marketingController = require('./controllers/marketingController');
@@ -88,7 +90,6 @@ const { protect, admin } = require('./middleware/auth');
 const upload = require('./middleware/upload'); // Import upload middleware
 
 app.get('/api/banners', marketingController.getBanners);
-app.post('/api/newsletter/subscribe', marketingController.subscribeNewsletter);
 
 // Admin Marketing Routes
 app.post('/api/admin/banners', protect, admin, upload.single('image'), marketingController.createBanner);
