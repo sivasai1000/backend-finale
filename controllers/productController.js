@@ -2,11 +2,46 @@ const pool = require('../config/database');
 
 exports.getAllProducts = async (req, res) => {
     try {
-        const [products] = await pool.query(`
+        const { category, subcategory, minPrice, maxPrice, search } = req.query;
+
+        let sql = `
             SELECT p.*, u.id as creatorId, u.name as creatorName, u.email as creatorEmail 
             FROM Products p 
             LEFT JOIN Users u ON p.addedBy = u.id
-        `);
+            WHERE 1=1
+        `;
+        const params = [];
+
+        if (category) {
+            sql += ' AND p.category = ?';
+            params.push(category);
+        }
+
+        if (subcategory) {
+            sql += ' AND p.subcategory = ?';
+            params.push(subcategory);
+        }
+
+        if (minPrice) {
+            sql += ' AND p.price >= ?';
+            params.push(minPrice);
+        }
+
+        if (maxPrice) {
+            sql += ' AND p.price <= ?';
+            params.push(maxPrice);
+        }
+
+        if (search) {
+            sql += ' AND (p.name LIKE ? OR p.description LIKE ?)';
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm, searchTerm);
+        }
+
+        // Add sorting (optional, but good for UX)
+        sql += ' ORDER BY p.createdAt DESC';
+
+        const [products] = await pool.query(sql, params);
 
         const formattedProducts = products.map(row => {
             const product = { ...row };
