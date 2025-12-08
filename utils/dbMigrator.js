@@ -44,6 +44,26 @@ async function verifyTables() {
             )
         `);
 
+        // Check Banners for extra columns
+        const [bannerColumns] = await connection.query("SHOW COLUMNS FROM Banners");
+        const hasIsActive = bannerColumns.some(col => col.Field === 'isActive');
+        if (!hasIsActive) {
+            console.log("Migrating Banners: Adding 'isActive' column...");
+            await connection.query("ALTER TABLE Banners ADD COLUMN isActive BOOLEAN DEFAULT true");
+        }
+
+        const hasBannerCreated = bannerColumns.some(col => col.Field === 'createdAt');
+        if (!hasBannerCreated) {
+            console.log("Migrating Banners: Adding 'createdAt' column...");
+            await connection.query("ALTER TABLE Banners ADD COLUMN createdAt DATETIME DEFAULT CURRENT_TIMESTAMP");
+        }
+
+        const hasBannerUpdated = bannerColumns.some(col => col.Field === 'updatedAt');
+        if (!hasBannerUpdated) {
+            console.log("Migrating Banners: Adding 'updatedAt' column...");
+            await connection.query("ALTER TABLE Banners ADD COLUMN updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+        }
+
         // 4. Check FeaturedProducts Table
         await connection.query(`
             CREATE TABLE IF NOT EXISTS FeaturedProducts (
