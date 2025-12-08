@@ -9,8 +9,21 @@ exports.createReview = async (req, res) => {
             return res.status(400).json({ message: 'Product ID and Rating are required' });
         }
 
-        // Check if user already reviewed this product? (Optional: Allow multiple reviews or restrict to one)
-        // For now, allow multiple.
+        // Check for verified purchase (Completed Order)
+        const [orders] = await pool.query(`
+            SELECT oi.id 
+            FROM OrderItems oi
+            JOIN Orders o ON oi.orderId = o.id
+            WHERE o.userId = ? 
+            AND oi.productId = ? 
+            AND o.status = 'completed'
+            LIMIT 1
+        `, [userId, productId]);
+
+        if (orders.length === 0) {
+            return res.status(403).json({ message: 'You can only review products you have purchased and received.' });
+        }
+
 
         await pool.query(
             'INSERT INTO Reviews (productId, userId, rating, comment, status, createdAt) VALUES (?, ?, ?, ?, ?, NOW())',
@@ -21,6 +34,31 @@ exports.createReview = async (req, res) => {
     } catch (error) {
         console.error('Error creating review:', error);
         res.status(500).json({ message: 'Server error creating review' });
+    }
+};
+
+exports.checkEligibility = async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const userId = req.user.id;
+
+        const [orders] = await pool.query(`
+            SELECT oi.id 
+            FROM OrderItems oi
+            JOIN Orders o ON oi.orderId = o.id
+            WHERE o.userId = ? 
+            AND oi.productId = ? 
+            AND o.status = 'completed'
+            LIMIT 1
+        `, [userId, productId]);
+
+        // Also check if they already reviewed? Maybe let's just return if they can review.
+        const canReview = orders.length > 0;
+
+        res.json({ canReview });
+    } catch (error) {
+        console.error('Error checking eligibility:', error);
+        res.status(500).json({ message: 'Server error checking eligibility' });
     }
 };
 

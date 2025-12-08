@@ -6,6 +6,7 @@ const { protect, admin } = require('../middleware/auth');
 // Public / User Routes
 router.post('/', protect, reviewController.createReview);
 router.get('/product/:productId', reviewController.getProductReviews);
+router.get('/eligibility/:productId', protect, reviewController.checkEligibility);
 
 // Admin Routes
 router.get('/admin', protect, admin, reviewController.getAllReviewsAdmin);

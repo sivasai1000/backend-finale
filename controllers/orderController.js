@@ -94,7 +94,7 @@ exports.getAllOrders = async (req, res) => {
         let sql = `
             SELECT o.*, 
                    u.name as userName, u.email as userEmail,
-                   oi.id as itemId, oi.quantity, oi.price as itemPrice,
+                   oi.id as itemId, oi.productId, oi.quantity, oi.price as itemPrice,
                    p.name as productName, p.price as productPrice, p.imageUrl as productImageUrl
             FROM Orders o
             LEFT JOIN Users u ON o.userId = u.id
@@ -137,6 +137,7 @@ exports.getAllOrders = async (req, res) => {
             if (row.itemId) {
                 ordersMap.get(row.id).OrderItems.push({
                     id: row.itemId,
+                    productId: row.productId,
                     quantity: row.quantity,
                     price: row.itemPrice,
                     Product: {
