@@ -21,8 +21,12 @@ async function fix() {
         if (ordersCols.length === 0) {
             console.log("Adding updatedAt to Orders");
             await conn.query("ALTER TABLE Orders ADD COLUMN updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-        } else {
-            console.log("Orders already has updatedAt");
+        }
+
+        const [ordersCreated] = await conn.query("SHOW COLUMNS FROM Orders LIKE 'createdAt'");
+        if (ordersCreated.length === 0) {
+            console.log("Adding createdAt to Orders");
+            await conn.query("ALTER TABLE Orders ADD COLUMN createdAt DATETIME DEFAULT CURRENT_TIMESTAMP");
         }
 
         console.log("Checking OrderItems...");
@@ -30,8 +34,12 @@ async function fix() {
         if (itemsCols.length === 0) {
             console.log("Adding updatedAt to OrderItems");
             await conn.query("ALTER TABLE OrderItems ADD COLUMN updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-        } else {
-            console.log("OrderItems already has updatedAt");
+        }
+
+        const [itemsCreated] = await conn.query("SHOW COLUMNS FROM OrderItems LIKE 'createdAt'");
+        if (itemsCreated.length === 0) {
+            console.log("Adding createdAt to OrderItems");
+            await conn.query("ALTER TABLE OrderItems ADD COLUMN createdAt DATETIME DEFAULT CURRENT_TIMESTAMP");
         }
 
     } catch (e) {
