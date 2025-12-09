@@ -26,9 +26,10 @@ if (isCloudinaryConfigured) {
         cloudinary: cloudinary,
         params: {
             folder: 'ecommerce_uploads',
-            allowed_formats: ['jpg', 'png', 'jpeg', 'gif'],
+            resource_type: 'auto' // allows raw, video, pdf, zip, etc.
         },
     });
+
 } else {
     console.log('Using Local Disk Storage (Cloudinary not configured)');
     // Ensure uploads directory exists
