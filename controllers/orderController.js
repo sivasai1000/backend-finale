@@ -19,6 +19,17 @@ exports.placeOrder = async (req, res) => {
             receipt: `receipt_order_${Date.now()}`,
         };
 
+        // Check stock availability before creating order
+        for (const item of items) {
+            const [rows] = await pool.query('SELECT stock, name FROM Products WHERE id = ?', [item.productId]);
+            if (rows.length === 0) {
+                return res.status(404).json({ message: `Product not found: ${item.productId}` });
+            }
+            if (rows[0].stock < item.quantity) {
+                return res.status(400).json({ message: `Insufficient stock for product: ${rows[0].name}. Available: ${rows[0].stock}` });
+            }
+        }
+
         const razorpayOrder = await razorpay.orders.create(options);
 
         // Create Order in DB (Status: pending)
@@ -74,6 +85,19 @@ exports.verifyPayment = async (req, res) => {
                 "UPDATE Orders SET status = 'completed', updatedAt = NOW() WHERE paymentId = ?",
                 [razorpay_order_id]
             );
+
+            // Decrease stock
+            // 1. Get order ID and items
+            const [orderRows] = await pool.query('SELECT id FROM Orders WHERE paymentId = ?', [razorpay_order_id]);
+            if (orderRows.length > 0) {
+                const orderId = orderRows[0].id;
+                const [orderItems] = await pool.query('SELECT productId, quantity FROM OrderItems WHERE orderId = ?', [orderId]);
+
+                // 2. Update stock for each item
+                for (const item of orderItems) {
+                    await pool.query('UPDATE Products SET stock = stock - ? WHERE id = ?', [item.quantity, item.productId]);
+                }
+            }
 
             return res.status(200).json({ message: 'Payment verified successfully' });
         } else {
