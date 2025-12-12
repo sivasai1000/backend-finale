@@ -22,7 +22,7 @@ const startCleanupJob = () => {
                         const [result] = await pool.query(`
                             DELETE FROM ${tableName} 
                             WHERE deletedAt IS NOT NULL 
-                            AND deletedAt < DATE_SUB(NOW(), INTERVAL 1 MINUTE)
+                            AND deletedAt < DATE_SUB(NOW(), INTERVAL 30 DAY)
                         `);
 
                         if (result.affectedRows > 0) {
