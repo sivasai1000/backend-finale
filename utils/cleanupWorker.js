@@ -2,9 +2,9 @@ const cron = require('node-cron');
 const pool = require('../config/database');
 
 const startCleanupJob = () => {
-    // Schedule task to run at midnight every day
-    cron.schedule('0 0 * * *', async () => {
-        console.log('🧹 Running Daily Soft Delete Cleanup...');
+    // Schedule task to run EVERY MINUTE (For testing)
+    cron.schedule('* * * * *', async () => {
+        console.log('🧹 Running Cleanup Worker (Every Minute Check)...');
 
         const tablesToClean = ['Users', 'Products', 'Reviews', 'Banners', 'Coupons', 'Blogs'];
 
@@ -36,7 +36,7 @@ const startCleanupJob = () => {
         }
     });
 
-    console.log('✅ Daily Cleanup Worker Scheduled (00:00)');
+    console.log('✅ Cleanup Worker Scheduled (Running every minute for validation)');
 };
 
 module.exports = startCleanupJob;
