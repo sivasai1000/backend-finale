@@ -18,11 +18,11 @@ const startCleanupJob = () => {
                     const hasDeletedAt = columns.some(col => col.Field === 'deletedAt');
 
                     if (hasDeletedAt) {
-                        // Delete records where deletedAt is older than 30 days
+
                         const [result] = await pool.query(`
                             DELETE FROM ${tableName} 
                             WHERE deletedAt IS NOT NULL 
-                            AND deletedAt < DATE_SUB(NOW(), INTERVAL 30 DAY)
+                            AND deletedAt < DATE_SUB(NOW(), INTERVAL  3 MINUTE)
                         `);
 
                         if (result.affectedRows > 0) {
