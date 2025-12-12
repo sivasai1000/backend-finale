@@ -5,7 +5,7 @@ const AppError = require('../utils/appError');
 exports.getAllBlogs = catchAsync(async (req, res, next) => {
     const { q, category } = req.query;
 
-    let sql = 'SELECT * FROM Blogs';
+    let sql = 'SELECT * FROM Blogs WHERE deletedAt IS NULL';
     const params = [];
     const conditions = [];
 
@@ -30,7 +30,7 @@ exports.getAllBlogs = catchAsync(async (req, res, next) => {
 });
 
 exports.getBlogById = catchAsync(async (req, res, next) => {
-    const [rows] = await pool.query('SELECT * FROM Blogs WHERE id = ?', [req.params.id]);
+    const [rows] = await pool.query('SELECT * FROM Blogs WHERE id = ? AND deletedAt IS NULL', [req.params.id]);
     if (rows.length === 0) {
         return next(new AppError('Blog not found', 404));
     }
@@ -38,7 +38,7 @@ exports.getBlogById = catchAsync(async (req, res, next) => {
 });
 
 exports.getCategories = catchAsync(async (req, res, next) => {
-    const [rows] = await pool.query('SELECT DISTINCT category FROM Blogs');
+    const [rows] = await pool.query('SELECT DISTINCT category FROM Blogs WHERE deletedAt IS NULL');
     const categoryList = rows.map(c => c.category).filter(Boolean);
     res.json(categoryList);
 });
@@ -106,9 +106,23 @@ exports.updateBlog = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteBlog = catchAsync(async (req, res, next) => {
-    const [result] = await pool.query('DELETE FROM Blogs WHERE id = ?', [req.params.id]);
+    // SOFT DELETE
+    const [result] = await pool.query('UPDATE Blogs SET deletedAt = NOW() WHERE id = ?', [req.params.id]);
     if (result.affectedRows === 0) {
         return next(new AppError('Blog not found', 404));
     }
-    res.json({ message: 'Blog deleted successfully' });
+    res.json({ message: 'Blog moved to trash successfully' });
+});
+
+exports.getTrashBlogs = catchAsync(async (req, res, next) => {
+    const [blogs] = await pool.query('SELECT * FROM Blogs WHERE deletedAt IS NOT NULL');
+    res.json(blogs);
+});
+
+exports.restoreBlog = catchAsync(async (req, res, next) => {
+    const [result] = await pool.query('UPDATE Blogs SET deletedAt = NULL WHERE id = ?', [req.params.id]);
+    if (result.affectedRows === 0) {
+        return next(new AppError('Blog not found in trash', 404));
+    }
+    res.json({ message: 'Blog restored successfully' });
 });

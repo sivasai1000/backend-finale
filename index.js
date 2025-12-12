@@ -95,6 +95,8 @@ app.get('/api/banners', marketingController.getBanners);
 
 // Admin Marketing Routes
 app.post('/api/admin/banners', protect, admin, upload.single('image'), marketingController.createBanner);
+app.get('/api/admin/banners/trash', protect, admin, marketingController.getTrashBanners); // Restored Trash route
+app.put('/api/admin/banners/restore/:id', protect, admin, marketingController.restoreBanner); // Restored Restore route
 app.delete('/api/admin/banners/:id', protect, admin, marketingController.deleteBanner);
 app.get('/api/admin/subscribers', protect, admin, marketingController.getAllSubscribers);
 
@@ -121,6 +123,8 @@ app.use(globalErrorHandler);
 const verifyTables = require('./utils/dbMigrator');
 
 // Start Server with DB Check
+const startCleanupJob = require('./utils/cleanupWorker');
+
 async function startServer() {
     try {
         await pool.query('SELECT 1');
@@ -128,6 +132,9 @@ async function startServer() {
 
         // Run Auto-Migrations
         await verifyTables();
+
+        // Start Cleanup Worker
+        startCleanupJob();
 
         app.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);

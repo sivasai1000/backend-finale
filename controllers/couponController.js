@@ -3,7 +3,7 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 exports.getCoupons = catchAsync(async (req, res, next) => {
-    let sql = 'SELECT * FROM Coupons';
+    let sql = 'SELECT * FROM Coupons WHERE deletedAt IS NULL';
     const params = [];
 
     if (!req.user || req.user.role !== 'admin') {
@@ -37,15 +37,38 @@ exports.deleteCoupon = catchAsync(async (req, res, next) => {
     if (!req.user || req.user.role !== 'admin') return next(new AppError('Forbidden', 403));
 
     const { id } = req.params;
-    await pool.query('DELETE FROM Coupons WHERE id = ?', [id]);
-    res.json({ message: 'Coupon deleted' });
+    const [result] = await pool.query('UPDATE Coupons SET deletedAt = NOW() WHERE id = ?', [id]);
+
+    if (result.affectedRows === 0) {
+        return next(new AppError('Coupon not found', 404));
+    }
+
+    res.json({ message: 'Coupon moved to trash' });
+});
+
+exports.getTrashCoupons = catchAsync(async (req, res, next) => {
+    if (!req.user || req.user.role !== 'admin') return next(new AppError('Forbidden', 403));
+    const [coupons] = await pool.query('SELECT * FROM Coupons WHERE deletedAt IS NOT NULL');
+    res.json(coupons);
+});
+
+exports.restoreCoupon = catchAsync(async (req, res, next) => {
+    if (!req.user || req.user.role !== 'admin') return next(new AppError('Forbidden', 403));
+    const { id } = req.params;
+    const [result] = await pool.query('UPDATE Coupons SET deletedAt = NULL WHERE id = ?', [id]);
+
+    if (result.affectedRows === 0) {
+        return next(new AppError('Coupon not found in trash', 404));
+    }
+
+    res.json({ message: 'Coupon restored successfully' });
 });
 
 exports.validateCoupon = catchAsync(async (req, res, next) => {
     const { code, cartTotal } = req.body;
     console.log(`Validating Coupon: ${code}`);
 
-    const [rows] = await pool.query('SELECT * FROM Coupons WHERE code = ? AND isActive = true', [code]);
+    const [rows] = await pool.query('SELECT * FROM Coupons WHERE code = ? AND isActive = true AND deletedAt IS NULL', [code]);
     const coupon = rows[0];
 
     if (!coupon) {

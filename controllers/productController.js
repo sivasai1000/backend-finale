@@ -9,7 +9,7 @@ exports.getAllProducts = catchAsync(async (req, res, next) => {
         SELECT p.*, u.id as creatorId, u.name as creatorName, u.email as creatorEmail 
         FROM Products p 
         LEFT JOIN Users u ON p.addedBy = u.id
-        WHERE 1=1
+        WHERE p.deletedAt IS NULL
     `;
     const params = [];
 
@@ -67,8 +67,9 @@ exports.getProductById = catchAsync(async (req, res, next) => {
     const [rows] = await pool.query(`
         SELECT p.*, u.id as creatorId, u.name as creatorName, u.email as creatorEmail 
         FROM Products p 
+        FROM Products p 
         LEFT JOIN Users u ON p.addedBy = u.id
-        WHERE p.id = ?
+        WHERE p.id = ? AND p.deletedAt IS NULL
     `, [req.params.id]);
 
     if (rows.length === 0) {
@@ -88,7 +89,7 @@ exports.getProductById = catchAsync(async (req, res, next) => {
 });
 
 exports.getCategories = catchAsync(async (req, res, next) => {
-    const [rows] = await pool.query("SELECT DISTINCT category, subcategory FROM Products WHERE category IS NOT NULL AND category != ''");
+    const [rows] = await pool.query("SELECT DISTINCT category, subcategory FROM Products WHERE category IS NOT NULL AND category != '' AND deletedAt IS NULL");
 
     const categoryMap = {};
 
@@ -173,13 +174,30 @@ exports.updateProduct = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteProduct = catchAsync(async (req, res, next) => {
-    const [result] = await pool.query('DELETE FROM Products WHERE id = ?', [req.params.id]);
+    // SOFT DELETE
+    const [result] = await pool.query('UPDATE Products SET deletedAt = NOW() WHERE id = ?', [req.params.id]);
 
     if (result.affectedRows === 0) {
         return next(new AppError('Product not found', 404));
     }
 
-    res.json({ message: 'Product deleted successfully' });
+    res.json({ message: 'Product moved to trash successfully' });
+});
+
+exports.getTrashProducts = catchAsync(async (req, res, next) => {
+    // Admin only - Get deleted products
+    const [products] = await pool.query('SELECT * FROM Products WHERE deletedAt IS NOT NULL');
+    res.json(products);
+});
+
+exports.restoreProduct = catchAsync(async (req, res, next) => {
+    const [result] = await pool.query('UPDATE Products SET deletedAt = NULL WHERE id = ?', [req.params.id]);
+
+    if (result.affectedRows === 0) {
+        return next(new AppError('Product not found in trash', 404));
+    }
+
+    res.json({ message: 'Product restored successfully' });
 });
 
 exports.getFamousProducts = catchAsync(async (req, res, next) => {
@@ -187,6 +205,7 @@ exports.getFamousProducts = catchAsync(async (req, res, next) => {
         SELECT p.*, SUM(oi.quantity) as totalSold 
         FROM OrderItems oi 
         JOIN Products p ON oi.productId = p.id 
+        WHERE p.deletedAt IS NULL
         GROUP BY oi.productId 
         ORDER BY totalSold DESC 
         LIMIT 8
@@ -196,6 +215,6 @@ exports.getFamousProducts = catchAsync(async (req, res, next) => {
 });
 
 exports.getDeals = catchAsync(async (req, res, next) => {
-    const [products] = await pool.query('SELECT * FROM Products WHERE discount > 0 ORDER BY discount DESC');
+    const [products] = await pool.query('SELECT * FROM Products WHERE discount > 0 AND deletedAt IS NULL ORDER BY discount DESC');
     res.json(products);
 });

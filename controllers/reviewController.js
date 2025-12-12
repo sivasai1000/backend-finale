@@ -72,7 +72,7 @@ exports.getProductReviews = catchAsync(async (req, res, next) => {
         SELECT r.*, u.name as userName 
         FROM Reviews r 
         JOIN Users u ON r.userId = u.id 
-        WHERE r.productId = ? AND r.status = 'approved' 
+        WHERE r.productId = ? AND r.status = 'approved' AND r.deletedAt IS NULL
         ORDER BY r.createdAt DESC
     `, [productId]);
 
@@ -85,6 +85,7 @@ exports.getAllReviewsAdmin = catchAsync(async (req, res, next) => {
         FROM Reviews r 
         JOIN Users u ON r.userId = u.id 
         JOIN Products p ON r.productId = p.id 
+        WHERE r.deletedAt IS NULL
         ORDER BY r.createdAt DESC
     `);
     res.json(reviews);
@@ -97,6 +98,40 @@ exports.updateReviewStatus = catchAsync(async (req, res, next) => {
     await pool.query('UPDATE Reviews SET status = ? WHERE id = ?', [status, id]);
 
     res.json({ message: `Review ${status} successfully` });
+});
+
+exports.deleteReview = catchAsync(async (req, res, next) => {
+    // SOFT DELETE
+    const { id } = req.params;
+    const [result] = await pool.query('UPDATE Reviews SET deletedAt = NOW() WHERE id = ?', [id]);
+
+    if (result.affectedRows === 0) {
+        return next(new AppError('Review not found', 404));
+    }
+
+    res.json({ message: 'Review moved to trash' });
+});
+
+exports.getTrashReviews = catchAsync(async (req, res, next) => {
+    const [reviews] = await pool.query(`
+        SELECT r.*, u.name as userName, p.name as productName 
+        FROM Reviews r 
+        JOIN Users u ON r.userId = u.id 
+        JOIN Products p ON r.productId = p.id 
+        WHERE r.deletedAt IS NOT NULL
+    `);
+    res.json(reviews);
+});
+
+exports.restoreReview = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const [result] = await pool.query('UPDATE Reviews SET deletedAt = NULL WHERE id = ?', [id]);
+
+    if (result.affectedRows === 0) {
+        return next(new AppError('Review not found in trash', 404));
+    }
+
+    res.json({ message: 'Review restored successfully' });
 });
 
 exports.deleteReview = catchAsync(async (req, res, next) => {

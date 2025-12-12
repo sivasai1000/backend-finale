@@ -3,7 +3,7 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 exports.getBanners = catchAsync(async (req, res, next) => {
-    const [banners] = await pool.query('SELECT * FROM Banners WHERE isActive = TRUE ORDER BY createdAt DESC');
+    const [banners] = await pool.query('SELECT * FROM Banners WHERE isActive = TRUE AND deletedAt IS NULL ORDER BY createdAt DESC');
     res.json(banners);
 });
 
@@ -51,8 +51,30 @@ exports.createBanner = catchAsync(async (req, res, next) => {
 
 exports.deleteBanner = catchAsync(async (req, res, next) => {
     const { id } = req.params;
-    await pool.query('DELETE FROM Banners WHERE id = ?', [id]);
-    res.json({ message: 'Banner deleted successfully' });
+    // SOFT DELETE
+    const [result] = await pool.query('UPDATE Banners SET deletedAt = NOW() WHERE id = ?', [id]);
+
+    if (result.affectedRows === 0) {
+        return next(new AppError('Banner not found', 404));
+    }
+
+    res.json({ message: 'Banner moved to trash successfully' });
+});
+
+exports.getTrashBanners = catchAsync(async (req, res, next) => {
+    const [banners] = await pool.query('SELECT * FROM Banners WHERE deletedAt IS NOT NULL');
+    res.json(banners);
+});
+
+exports.restoreBanner = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const [result] = await pool.query('UPDATE Banners SET deletedAt = NULL WHERE id = ?', [id]);
+
+    if (result.affectedRows === 0) {
+        return next(new AppError('Banner not found in trash', 404));
+    }
+
+    res.json({ message: 'Banner restored successfully' });
 });
 
 exports.getAllSubscribers = catchAsync(async (req, res, next) => {

@@ -155,6 +155,27 @@ async function verifyTables() {
             await connection.query("ALTER TABLE Products ADD COLUMN addedBy INT DEFAULT NULL, ADD FOREIGN KEY (addedBy) REFERENCES Users(id) ON DELETE SET NULL");
         }
 
+        // 7. Soft Delete Migrations (deletedAt)
+        const tablesToCheck = ['Users', 'Products', 'Reviews', 'Banners', 'Coupons', 'Blogs'];
+
+        for (const tableName of tablesToCheck) {
+            try {
+                // Check if table exists first to avoid errors
+                const [tableExists] = await connection.query(`SHOW TABLES LIKE '${tableName}'`);
+                if (tableExists.length > 0) {
+                    const [columns] = await connection.query(`SHOW COLUMNS FROM ${tableName}`);
+                    const hasDeletedAt = columns.some(col => col.Field === 'deletedAt');
+
+                    if (!hasDeletedAt) {
+                        console.log(`Migrating ${tableName}: Adding 'deletedAt' column...`);
+                        await connection.query(`ALTER TABLE ${tableName} ADD COLUMN deletedAt DATETIME DEFAULT NULL`);
+                    }
+                }
+            } catch (err) {
+                console.error(`Error checking/migrating ${tableName}:`, err.message);
+            }
+        }
+
         console.log('Database schema verification complete.');
     } catch (error) {
         console.error('Database migration error:', error);

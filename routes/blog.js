@@ -3,6 +3,10 @@ const router = express.Router();
 const blogController = require('../controllers/blogController');
 
 const upload = require('../middleware/upload');
+const { protect, admin } = require('../middleware/auth');
+
+router.get('/trash', protect, admin, blogController.getTrashBlogs);
+router.put('/restore/:id', protect, admin, blogController.restoreBlog);
 
 router.get('/', blogController.getAllBlogs);
 router.post('/', upload.single('image'), blogController.createBlog); // For admin/seeding
