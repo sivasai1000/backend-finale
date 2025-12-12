@@ -7,6 +7,8 @@ const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const pool = require('./config/database');
+const AppError = require('./utils/appError');
+const globalErrorHandler = require('./controllers/errorController');
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -107,6 +109,14 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get('/', (req, res) => {
     res.send('API is running...');
 });
+
+// Handle Undefined Routes
+app.all(/(.*)/, (req, res, next) => {
+    next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+});
+
+// Global Error Handler
+app.use(globalErrorHandler);
 
 const verifyTables = require('./utils/dbMigrator');
 

@@ -1,37 +1,24 @@
 const pool = require('../config/database');
+const catchAsync = require('../utils/catchAsync');
+const AppError = require('../utils/appError');
 
-exports.getFAQs = async (req, res) => {
-    try {
-        const [rows] = await pool.query('SELECT * FROM FAQs ORDER BY createdAt DESC');
-        res.json(rows);
-    } catch (error) {
-        console.error('Error fetching FAQs:', error);
-        res.status(500).json({ message: 'Server error fetching FAQs' });
+exports.getFAQs = catchAsync(async (req, res, next) => {
+    const [rows] = await pool.query('SELECT * FROM FAQs ORDER BY createdAt DESC');
+    res.json(rows);
+});
+
+exports.createFAQ = catchAsync(async (req, res, next) => {
+    const { question, answer } = req.body;
+    if (!question || !answer) {
+        return next(new AppError('Question and answer are required', 400));
     }
-};
 
-exports.createFAQ = async (req, res) => {
-    try {
-        const { question, answer } = req.body;
-        if (!question || !answer) {
-            return res.status(400).json({ message: 'Question and answer are required' });
-        }
+    await pool.query('INSERT INTO FAQs (question, answer) VALUES (?, ?)', [question, answer]);
+    res.status(201).json({ message: 'FAQ created successfully' });
+});
 
-        await pool.query('INSERT INTO FAQs (question, answer) VALUES (?, ?)', [question, answer]);
-        res.status(201).json({ message: 'FAQ created successfully' });
-    } catch (error) {
-        console.error('Error creating FAQ:', error);
-        res.status(500).json({ message: 'Server error creating FAQ' });
-    }
-};
-
-exports.deleteFAQ = async (req, res) => {
-    try {
-        const { id } = req.params;
-        await pool.query('DELETE FROM FAQs WHERE id = ?', [id]);
-        res.json({ message: 'FAQ deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting FAQ:', error);
-        res.status(500).json({ message: 'Server error deleting FAQ' });
-    }
-};
+exports.deleteFAQ = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    await pool.query('DELETE FROM FAQs WHERE id = ?', [id]);
+    res.json({ message: 'FAQ deleted successfully' });
+});

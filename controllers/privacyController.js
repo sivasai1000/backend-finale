@@ -1,31 +1,23 @@
 const pool = require('../config/database');
+const catchAsync = require('../utils/catchAsync');
+const AppError = require('../utils/appError');
 
-exports.getPrivacy = async (req, res) => {
-    try {
-        const [rows] = await pool.query('SELECT * FROM Pages WHERE slug = ?', ['privacy']);
+exports.getPrivacy = catchAsync(async (req, res, next) => {
+    const [rows] = await pool.query('SELECT * FROM Pages WHERE slug = ?', ['privacy']);
 
-        if (rows.length === 0) {
-            return res.status(404).json({ message: 'Privacy Policy page not found' });
-        }
-        res.json(rows[0]);
-    } catch (error) {
-        console.error('Error fetching privacy page:', error);
-        res.status(500).json({ message: 'Server error fetching privacy page' });
+    if (rows.length === 0) {
+        return next(new AppError('Privacy Policy page not found', 404));
     }
-};
+    res.json(rows[0]);
+});
 
-exports.updatePrivacy = async (req, res) => {
-    try {
-        const { title, content } = req.body;
+exports.updatePrivacy = catchAsync(async (req, res, next) => {
+    const { title, content } = req.body;
 
-        await pool.query(
-            'UPDATE Pages SET title = ?, content = ? WHERE slug = ?',
-            [title, content, 'privacy']
-        );
+    await pool.query(
+        'UPDATE Pages SET title = ?, content = ? WHERE slug = ?',
+        [title, content, 'privacy']
+    );
 
-        res.json({ message: 'Privacy Policy updated successfully' });
-    } catch (error) {
-        console.error('Error updating privacy page:', error);
-        res.status(500).json({ message: 'Server error updating privacy page' });
-    }
-};
+    res.json({ message: 'Privacy Policy updated successfully' });
+});
