@@ -67,7 +67,6 @@ exports.getProductById = catchAsync(async (req, res, next) => {
     const [rows] = await pool.query(`
         SELECT p.*, u.id as creatorId, u.name as creatorName, u.email as creatorEmail 
         FROM Products p 
-        FROM Products p 
         LEFT JOIN Users u ON p.addedBy = u.id
         WHERE p.id = ? AND p.deletedAt IS NULL
     `, [req.params.id]);
