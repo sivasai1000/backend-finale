@@ -27,7 +27,7 @@ class Chat {
         // Actually, better to just get all unique users who have participated in a chat
         const [rows] = await pool.query(
             `SELECT DISTINCT 
-                u.id, u.name, u.email, u.avatar
+                u.id, u.name, u.email
              FROM Users u
              JOIN Chats c ON c.sender_id = u.id OR c.receiver_id = u.id
              WHERE c.is_admin_sender = false` // Only users who have initiated or received messages from support
