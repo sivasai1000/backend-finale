@@ -27,12 +27,56 @@ exports.sendMessage = async (req, res, next) => {
             is_admin_sender
         });
 
+        // --- BOT AUTO REPLIES ---
+        // Only if user is sender (not admin)
+        let botReply = null;
+        if (!isAdmin && receiverId === null) {
+            let replyText = "";
+            const lowerMsg = message.toLowerCase();
+
+            if (lowerMsg === "track order") {
+                replyText = "To track your order, please go to the 'Orders' page in your profile. You will see the status there!";
+            } else if (lowerMsg === "shipping info") {
+                replyText = "We ship worldwide! Standard shipping takes 5-7 days. Express shipping takes 2-3 days.";
+            } else if (lowerMsg === "returns") {
+                replyText = "You can return items within 30 days of receipt. Please contact us for a return label.";
+            }
+
+            if (replyText) {
+                await Chat.createMessage({
+                    sender_id: senderId, // Admin is replying TO this user, but in our DB model:
+                    // sender_id is the "Actor". If admin sends, sender_id is usually admin ID.
+                    // But here the SYSTEM is sending. We can use NULL or a special ID.
+                    // However, our Schema requires sender_id to be a User ID.
+                    // Let's assume ID 1 is the main admin, OR we just set is_admin_sender=true 
+                    // and use the User's ID as receiver.
+                    // WAIT: My Chat Model: sender_id, receiver_id.
+                    // If Admin sends: sender_id = AdminID, receiver_id = UserID.
+                    // If I don't have an AdminID handy (req.user is user), I might need to query one or use a dummy.
+                    // BETTER: Let's use the first Admin found, or just NULL if schema allows (Schema says sender_id INT).
+                    // Schema: FOREIGN KEY (sender_id) REFERENCES Users(id) ON DELETE SET NULL.
+                    // So I can use NULL for sender_id if it represents "System".
+                    sender_id: null,
+                    receiver_id: senderId,
+                    message: replyText,
+                    is_admin_sender: true
+                });
+                botReply = {
+                    message: replyText,
+                    is_admin_sender: 1,
+                    created_at: new Date()
+                };
+            }
+        }
+        // ------------------------
+
         res.status(201).json({
             status: 'success',
             data: {
                 id: chatId,
                 message,
-                createdAt: new Date()
+                createdAt: new Date(),
+                botReply // Return this so FE can show it immediately
             }
         });
     } catch (err) {
