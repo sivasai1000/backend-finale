@@ -8,7 +8,8 @@ const router = express.Router();
 router.use(protect);
 
 router.post('/send', chatController.sendMessage);
-router.get('/history/:userId?', chatController.getHistory);
+router.get('/history', chatController.getHistory);
+router.get('/history/:userId', chatController.getHistory);
 router.put('/read', chatController.markRead);
 
 // Admin Routes
