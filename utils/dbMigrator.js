@@ -176,6 +176,21 @@ async function verifyTables() {
             }
         }
 
+        // 8. Check Chats Table
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS Chats (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                sender_id INT,
+                receiver_id INT,
+                message TEXT,
+                is_admin_sender BOOLEAN DEFAULT false,
+                is_read BOOLEAN DEFAULT false,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (sender_id) REFERENCES Users(id) ON DELETE SET NULL,
+                FOREIGN KEY (receiver_id) REFERENCES Users(id) ON DELETE SET NULL
+            )
+        `);
+
         console.log('Database schema verification complete.');
     } catch (error) {
         console.error('Database migration error:', error);

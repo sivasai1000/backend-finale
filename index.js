@@ -24,9 +24,10 @@ const pageRoutes = require('./routes/pages');
 const contactRoutes = require('./routes/contact');
 const privacyRoutes = require('./routes/privacy');
 const shippingRoutes = require('./routes/shipping');
-const termsRoutes = require('./routes/terms');
+const termRoutes = require('./routes/terms');
 const reviewRoutes = require('./routes/reviews');
 const newsletterRoutes = require('./routes/newsletter');
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -85,6 +86,7 @@ app.use('/api/shipping', shippingRoutes);
 app.use('/api/terms', termsRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Marketing Routes
 const marketingController = require('./controllers/marketingController');
