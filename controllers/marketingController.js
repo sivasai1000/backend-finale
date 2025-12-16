@@ -14,7 +14,7 @@ exports.subscribeNewsletter = catchAsync(async (req, res, next) => {
         return next(new AppError('Email is required', 400));
     }
 
-    // Check if already subscribed
+    
     const [existing] = await pool.query('SELECT * FROM Subscribers WHERE email = ?', [email]);
     if (existing.length > 0) {
         return next(new AppError('Already subscribed', 409));
@@ -51,7 +51,7 @@ exports.createBanner = catchAsync(async (req, res, next) => {
 
 exports.deleteBanner = catchAsync(async (req, res, next) => {
     const { id } = req.params;
-    // SOFT DELETE
+    
     const [result] = await pool.query('UPDATE Banners SET deletedAt = NOW() WHERE id = ?', [id]);
 
     if (result.affectedRows === 0) {
@@ -102,17 +102,17 @@ exports.updateAbout = catchAsync(async (req, res, next) => {
         }
     }
 
-    // Check if row exists
+    
     const [rows] = await pool.query('SELECT * FROM About LIMIT 1');
 
     if (rows.length === 0) {
-        // Insert
+        
         await pool.query(
             'INSERT INTO About (title, description, imageUrl) VALUES (?, ?, ?)',
             [title, description, imageUrl || null]
         );
     } else {
-        // Update
+        
         let sql = 'UPDATE About SET title = ?, description = ?';
         const params = [title, description];
 

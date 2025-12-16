@@ -6,9 +6,9 @@ const { protect, admin } = require('../middleware/auth');
 
 router.get('/', protect, admin, userController.getAllUsers);
 router.put('/:id/status', protect, admin, userController.toggleUserStatus);
-router.delete('/:id', protect, admin, userController.deleteUser); // Soft Delete
+router.delete('/:id', protect, admin, userController.deleteUser); 
 
-// Trash & Restore
+
 router.get('/trash', protect, admin, userController.getTrashUsers);
 router.put('/restore/:id', protect, admin, userController.restoreUser);
 

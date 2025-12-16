@@ -13,7 +13,7 @@ const protect = async (req, res, next) => {
 
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-            // Fetch user from DB based on decoded ID
+            
             const [rows] = await pool.query('SELECT * FROM Users WHERE id = ?', [decoded.user.id]);
             req.user = rows[0];
 

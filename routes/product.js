@@ -1,16 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/productController');
-const { protect, admin } = require('../middleware/auth'); // Import auth middleware
+const { protect, admin } = require('../middleware/auth'); 
 
 const upload = require('../middleware/upload');
 
-router.get('/trash', protect, admin, productController.getTrashProducts); // Trash route
-router.put('/restore/:id', protect, admin, productController.restoreProduct); // Restore route
+router.get('/trash', protect, admin, productController.getTrashProducts); 
+router.put('/restore/:id', protect, admin, productController.restoreProduct); 
 
 router.get('/', productController.getAllProducts);
 router.get('/famous', productController.getFamousProducts);
-router.get('/deals', productController.getDeals); // Deals route
+router.get('/deals', productController.getDeals); 
 router.post('/', upload.single('image'), productController.createProduct);
 router.get('/categories', productController.getCategories);
 router.get('/:id', productController.getProductById);

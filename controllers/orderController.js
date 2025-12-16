@@ -13,14 +13,14 @@ exports.placeOrder = catchAsync(async (req, res, next) => {
     const { items, totalAmount, address } = req.body;
     const userId = req.user.id;
 
-    // Create Razorpay order
+    
     const options = {
-        amount: Math.round(totalAmount * 100), // Amount in paise
+        amount: Math.round(totalAmount * 100), 
         currency: 'INR',
         receipt: `receipt_order_${Date.now()}`,
     };
 
-    // Check stock availability before creating order
+    
     for (const item of items) {
         const [rows] = await pool.query('SELECT stock, name FROM Products WHERE id = ?', [item.productId]);
         if (rows.length === 0) {
@@ -33,20 +33,20 @@ exports.placeOrder = catchAsync(async (req, res, next) => {
 
     const razorpayOrder = await razorpay.orders.create(options);
 
-    // Create Order in DB (Status: pending)
+    
     const [orderResult] = await pool.query(
         'INSERT INTO Orders (totalAmount, status, paymentId, address, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
         [totalAmount, 'pending', razorpayOrder.id, JSON.stringify(address), userId]
     );
     const orderId = orderResult.insertId;
 
-    // Create OrderItems
+    
     const orderItemsValues = items.map(item => [
         orderId, item.productId, item.quantity, item.price
     ]);
 
     if (orderItemsValues.length > 0) {
-        // Bulk insert
+        
         await pool.query(
             'INSERT INTO OrderItems (orderId, productId, quantity, price, createdAt, updatedAt) VALUES ?',
             [orderItemsValues.map(v => [...v, new Date(), new Date()])]
@@ -57,7 +57,7 @@ exports.placeOrder = catchAsync(async (req, res, next) => {
         id: razorpayOrder.id,
         currency: razorpayOrder.currency,
         amount: razorpayOrder.amount,
-        orderId: orderId // Internal Order ID
+        orderId: orderId 
     });
 });
 
@@ -66,7 +66,7 @@ exports.verifyPayment = catchAsync(async (req, res, next) => {
         razorpay_order_id,
         razorpay_payment_id,
         razorpay_signature,
-        internal_order_id // We should pass this from frontend
+        internal_order_id 
     } = req.body;
 
     const sign = razorpay_order_id + '|' + razorpay_payment_id;
@@ -76,20 +76,20 @@ exports.verifyPayment = catchAsync(async (req, res, next) => {
         .digest('hex');
 
     if (razorpay_signature === expectedSign) {
-        // Payment success, update order status
+        
         await pool.query(
             "UPDATE Orders SET status = 'completed', updatedAt = NOW() WHERE paymentId = ?",
             [razorpay_order_id]
         );
 
-        // Decrease stock
-        // 1. Get order ID and items
+        
+        
         const [orderRows] = await pool.query('SELECT id FROM Orders WHERE paymentId = ?', [razorpay_order_id]);
         if (orderRows.length > 0) {
             const orderId = orderRows[0].id;
             const [orderItems] = await pool.query('SELECT productId, quantity FROM OrderItems WHERE orderId = ?', [orderId]);
 
-            // 2. Update stock for each item
+            
             for (const item of orderItems) {
                 await pool.query('UPDATE Products SET stock = stock - ? WHERE id = ?', [item.quantity, item.productId]);
             }
@@ -102,7 +102,7 @@ exports.verifyPayment = catchAsync(async (req, res, next) => {
 });
 
 exports.getAllOrders = catchAsync(async (req, res, next) => {
-    // Fetch fresh user data from DB
+    
     const [users] = await pool.query('SELECT * FROM Users WHERE id = ?', [req.user.id]);
     const user = users[0];
 
@@ -130,7 +130,7 @@ exports.getAllOrders = catchAsync(async (req, res, next) => {
 
     const [rows] = await pool.query(sql, params);
 
-    // Group items by order
+    
     const ordersMap = new Map();
 
     for (const row of rows) {
@@ -157,7 +157,7 @@ exports.getAllOrders = catchAsync(async (req, res, next) => {
                     productId: row.productId,
                     quantity: row.quantity,
                     price: row.itemPrice,
-                    isReviewed: !!row.reviewId, // True if review exists
+                    isReviewed: !!row.reviewId, 
                     Product: {
                         name: row.productName,
                         price: row.productPrice,
@@ -183,7 +183,7 @@ exports.updateOrderStatus = catchAsync(async (req, res, next) => {
         return next(new AppError('Order not found', 404));
     }
 
-    // Fetch updated order
+    
     const [rows] = await pool.query('SELECT * FROM Orders WHERE id = ?', [id]);
     res.json(rows[0]);
 });

@@ -11,7 +11,6 @@ const register = catchAsync(async (req, res, next) => {
         return next(new AppError('name, password, and either email or mobile are required', 400));
     }
 
-    // Check if user exists
     const [existing] = await pool.query(
         "SELECT * FROM Users WHERE email = ? OR mobile = ?",
         [email || null, mobile || null]
@@ -36,8 +35,7 @@ const register = catchAsync(async (req, res, next) => {
         role: 'user'
     };
 
-    // Create Token
-    const payload = {
+        const payload = {
         user: {
             id: user.id,
             role: user.role
@@ -77,7 +75,7 @@ const login = catchAsync(async (req, res, next) => {
 
     const user = result[0];
 
-    // Active check
+    
     if (user.isActive === 0) {
         return next(new AppError('Your account is deactivated. Please contact admin.', 403));
     }
@@ -88,7 +86,7 @@ const login = catchAsync(async (req, res, next) => {
         return next(new AppError('Incorrect password', 401));
     }
 
-    // Create Token
+    
     const payload = {
         user: {
             id: user.id,
@@ -163,26 +161,26 @@ const forgotPassword = catchAsync(async (req, res, next) => {
 
     const user = rows[0];
 
-    // Generate Token
+    
     const resetToken = crypto.randomBytes(32).toString('hex');
 
-    // Hash token
+    
     const resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    const resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    const resetPasswordExpires = Date.now() + 10 * 60 * 1000; 
 
     await pool.query(
         "UPDATE Users SET resetPasswordToken = ?, resetPasswordExpires = ? WHERE id = ?",
         [resetPasswordToken, resetPasswordExpires, user.id]
     );
 
-    // Construct reset URL for frontend
+    
     const resetUrl = `http://localhost:3000/reset-password?token=${resetToken}`;
 
     return res.status(200).json({
         status: "success",
         message: "Reset token generated",
-        resetToken: resetToken, // EXPOSING FOR TESTING ONLY
-        resetUrl // Helper
+        resetToken: resetToken, 
+        resetUrl 
     });
 });
 
@@ -192,7 +190,7 @@ const resetPassword = catchAsync(async (req, res, next) => {
         return next(new AppError('Token and new password required', 400));
     }
 
-    // Hash token to compare with DB
+    
     const resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const [rows] = await pool.query(
@@ -207,7 +205,7 @@ const resetPassword = catchAsync(async (req, res, next) => {
     const user = rows[0];
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update password and clear columns
+    
     await pool.query(
         "UPDATE Users SET password = ?, resetPasswordToken = NULL, resetPasswordExpires = NULL WHERE id = ?",
         [hashedPassword, user.id]

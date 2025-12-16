@@ -9,7 +9,7 @@ router.get('/trash', protect, admin, blogController.getTrashBlogs);
 router.put('/restore/:id', protect, admin, blogController.restoreBlog);
 
 router.get('/', blogController.getAllBlogs);
-router.post('/', upload.single('image'), blogController.createBlog); // For admin/seeding
+router.post('/', upload.single('image'), blogController.createBlog); 
 router.get('/categories', blogController.getCategories);
 router.get('/:id', blogController.getBlogById);
 router.put('/:id', upload.single('image'), blogController.updateBlog);

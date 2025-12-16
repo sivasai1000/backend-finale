@@ -2,18 +2,18 @@ const cron = require('node-cron');
 const pool = require('../config/database');
 
 const startCleanupJob = () => {
-    // Schedule task to run EVERY MINUTE (For testing)
+    
     cron.schedule('* * * * *', async () => {
-        console.log('🧹 Running Cleanup Worker (Every Minute Check)...');
+        
 
         const tablesToClean = ['Users', 'Products', 'Reviews', 'Banners', 'Coupons', 'Blogs'];
 
         for (const tableName of tablesToClean) {
             try {
-                // Check if table exists
+                
                 const [tableExists] = await pool.query(`SHOW TABLES LIKE '${tableName}'`);
                 if (tableExists.length > 0) {
-                    // Check if deletedAt column exists
+                    
                     const [columns] = await pool.query(`SHOW COLUMNS FROM ${tableName}`);
                     const hasDeletedAt = columns.some(col => col.Field === 'deletedAt');
 
@@ -26,7 +26,7 @@ const startCleanupJob = () => {
                         `);
 
                         if (result.affectedRows > 0) {
-                            console.log(`🗑️ Permanently deleted ${result.affectedRows} old records from ${tableName}`);
+                            
                         }
                     }
                 }
@@ -36,7 +36,7 @@ const startCleanupJob = () => {
         }
     });
 
-    console.log('✅ Cleanup Worker Scheduled (Running every minute for validation)');
+    
 };
 
 module.exports = startCleanupJob;

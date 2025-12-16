@@ -1,10 +1,10 @@
 const pool = require('../config/database');
 
 async function verifyTables() {
-    console.log('Verifying database schema...');
+    
     const connection = await pool.getConnection();
     try {
-        // 1. Check Reviews Table
+        
         await connection.query(`
             CREATE TABLE IF NOT EXISTS Reviews (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -20,15 +20,15 @@ async function verifyTables() {
             )
         `);
 
-        // Check Reviews for orderId column
+        
         const [reviewColumns] = await connection.query("SHOW COLUMNS FROM Reviews");
         const hasOrderId = reviewColumns.some(col => col.Field === 'orderId');
         if (!hasOrderId) {
-            console.log("Migrating Reviews: Adding 'orderId' column...");
+            
             await connection.query("ALTER TABLE Reviews ADD COLUMN orderId INT NULL AFTER userId");
         }
 
-        // 2. Check Pages Table (for Terms, Privacy, etc.)
+        
         await connection.query(`
             CREATE TABLE IF NOT EXISTS Pages (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -39,7 +39,7 @@ async function verifyTables() {
             )
         `);
 
-        // 3. Check Banners Table
+        
         await connection.query(`
             CREATE TABLE IF NOT EXISTS Banners (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -53,27 +53,27 @@ async function verifyTables() {
             )
         `);
 
-        // Check Banners for extra columns
+        
         const [bannerColumns] = await connection.query("SHOW COLUMNS FROM Banners");
         const hasIsActive = bannerColumns.some(col => col.Field === 'isActive');
         if (!hasIsActive) {
-            console.log("Migrating Banners: Adding 'isActive' column...");
+            
             await connection.query("ALTER TABLE Banners ADD COLUMN isActive BOOLEAN DEFAULT true");
         }
 
         const hasBannerCreated = bannerColumns.some(col => col.Field === 'createdAt');
         if (!hasBannerCreated) {
-            console.log("Migrating Banners: Adding 'createdAt' column...");
+            
             await connection.query("ALTER TABLE Banners ADD COLUMN createdAt DATETIME DEFAULT CURRENT_TIMESTAMP");
         }
 
         const hasBannerUpdated = bannerColumns.some(col => col.Field === 'updatedAt');
         if (!hasBannerUpdated) {
-            console.log("Migrating Banners: Adding 'updatedAt' column...");
+            
             await connection.query("ALTER TABLE Banners ADD COLUMN updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
         }
 
-        // 4. Check FeaturedProducts Table
+        
         await connection.query(`
             CREATE TABLE IF NOT EXISTS FeaturedProducts (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -84,34 +84,34 @@ async function verifyTables() {
             )
         `);
 
-        // 3. Check Orders Table Columns (Migration for address/paymentId)
+        
         const [orderColumns] = await connection.query("SHOW COLUMNS FROM Orders");
         const hasAddress = orderColumns.some(col => col.Field === 'address');
         const hasPaymentId = orderColumns.some(col => col.Field === 'paymentId');
 
         if (!hasAddress) {
-            console.log("Migrating Orders: Adding 'address' column...");
+            
             await connection.query("ALTER TABLE Orders ADD COLUMN address JSON");
         }
 
         if (!hasPaymentId) {
-            console.log("Migrating Orders: Adding 'paymentId' column...");
+            
             await connection.query("ALTER TABLE Orders ADD COLUMN paymentId VARCHAR(255)");
         }
 
         const hasUpdatedAt = orderColumns.some(col => col.Field === 'updatedAt');
         if (!hasUpdatedAt) {
-            console.log("Migrating Orders: Adding 'updatedAt' column...");
+            
             await connection.query("ALTER TABLE Orders ADD COLUMN updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
         }
 
         const hasCreatedAt = orderColumns.some(col => col.Field === 'createdAt');
         if (!hasCreatedAt) {
-            console.log("Migrating Orders: Adding 'createdAt' column...");
+            
             await connection.query("ALTER TABLE Orders ADD COLUMN createdAt DATETIME DEFAULT CURRENT_TIMESTAMP");
         }
 
-        // 5. Check OrderItems Table
+        
         await connection.query(`
             CREATE TABLE IF NOT EXISTS OrderItems (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -126,48 +126,48 @@ async function verifyTables() {
             )
         `);
 
-        // Check OrderItems for extra columns if table exists
+        
         const [itemColumns] = await connection.query("SHOW COLUMNS FROM OrderItems");
         const hasItemsUpdatedAt = itemColumns.some(col => col.Field === 'updatedAt');
         if (!hasItemsUpdatedAt) {
-            console.log("Migrating OrderItems: Adding 'updatedAt' column...");
+            
             await connection.query("ALTER TABLE OrderItems ADD COLUMN updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
         }
 
         const hasItemsCreatedAt = itemColumns.some(col => col.Field === 'createdAt');
         if (!hasItemsCreatedAt) {
-            console.log("Migrating OrderItems: Adding 'createdAt' column...");
+            
             await connection.query("ALTER TABLE OrderItems ADD COLUMN createdAt DATETIME DEFAULT CURRENT_TIMESTAMP");
         }
 
-        // 6. Check Products Table Columns (Migration for isFeatured, addedBy)
+        
         const [productColumns] = await connection.query("SHOW COLUMNS FROM Products");
         const hasIsFeatured = productColumns.some(col => col.Field === 'isFeatured');
         const hasAddedBy = productColumns.some(col => col.Field === 'addedBy');
 
         if (!hasIsFeatured) {
-            console.log("Migrating Products: Adding 'isFeatured' column...");
+            
             await connection.query("ALTER TABLE Products ADD COLUMN isFeatured BOOLEAN DEFAULT false");
         }
 
         if (!hasAddedBy) {
-            console.log("Migrating Products: Adding 'addedBy' column...");
+            
             await connection.query("ALTER TABLE Products ADD COLUMN addedBy INT DEFAULT NULL, ADD FOREIGN KEY (addedBy) REFERENCES Users(id) ON DELETE SET NULL");
         }
 
-        // 7. Soft Delete Migrations (deletedAt)
+        
         const tablesToCheck = ['Users', 'Products', 'Reviews', 'Banners', 'Coupons', 'Blogs'];
 
         for (const tableName of tablesToCheck) {
             try {
-                // Check if table exists first to avoid errors
+                
                 const [tableExists] = await connection.query(`SHOW TABLES LIKE '${tableName}'`);
                 if (tableExists.length > 0) {
                     const [columns] = await connection.query(`SHOW COLUMNS FROM ${tableName}`);
                     const hasDeletedAt = columns.some(col => col.Field === 'deletedAt');
 
                     if (!hasDeletedAt) {
-                        console.log(`Migrating ${tableName}: Adding 'deletedAt' column...`);
+                        
                         await connection.query(`ALTER TABLE ${tableName} ADD COLUMN deletedAt DATETIME DEFAULT NULL`);
                     }
                 }
@@ -176,7 +176,7 @@ async function verifyTables() {
             }
         }
 
-        // 8. Check Chats Table
+        
         await connection.query(`
             CREATE TABLE IF NOT EXISTS Chats (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -191,10 +191,10 @@ async function verifyTables() {
             )
         `);
 
-        console.log('Database schema verification complete.');
+        
     } catch (error) {
         console.error('Database migration error:', error);
-        // Don't exit process, let server try to start, but log critical error
+        
     } finally {
         connection.release();
     }

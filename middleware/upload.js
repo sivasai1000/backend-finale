@@ -7,7 +7,7 @@ const fs = require('fs');
 
 dotenv.config();
 
-// check if cloudinary keys are set
+
 const isCloudinaryConfigured = process.env.CLOUDINARY_CLOUD_NAME &&
     process.env.CLOUDINARY_CLOUD_NAME !== 'your_cloud_name' &&
     process.env.CLOUDINARY_API_KEY !== 'your_api_key';
@@ -15,7 +15,7 @@ const isCloudinaryConfigured = process.env.CLOUDINARY_CLOUD_NAME &&
 let storage;
 
 if (isCloudinaryConfigured) {
-    console.log('Using Cloudinary Storage');
+
     cloudinary.config({
         cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
         api_key: process.env.CLOUDINARY_API_KEY,
@@ -26,13 +26,13 @@ if (isCloudinaryConfigured) {
         cloudinary: cloudinary,
         params: {
             folder: 'ecommerce_uploads',
-            resource_type: 'auto' // allows raw, video, pdf, zip, etc.
+            resource_type: 'auto'
         },
     });
 
 } else {
-    console.log('Using Local Disk Storage (Cloudinary not configured)');
-    // Ensure uploads directory exists
+
+
     const uploadDir = path.join(__dirname, '../uploads');
     if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });

@@ -48,11 +48,11 @@ exports.createBlog = catchAsync(async (req, res, next) => {
 
     let imageUrl = null;
     if (req.file) {
-        // If using local storage, construct full URL
+        
         if (!req.file.path.startsWith('http')) {
             imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
         } else {
-            imageUrl = req.file.path; // Cloudinary URL
+            imageUrl = req.file.path; 
         }
     }
 
@@ -106,7 +106,7 @@ exports.updateBlog = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteBlog = catchAsync(async (req, res, next) => {
-    // SOFT DELETE
+    
     const [result] = await pool.query('UPDATE Blogs SET deletedAt = NOW() WHERE id = ?', [req.params.id]);
     if (result.affectedRows === 0) {
         return next(new AppError('Blog not found', 404));

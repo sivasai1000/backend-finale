@@ -8,7 +8,7 @@ exports.subscribe = catchAsync(async (req, res, next) => {
         return next(new AppError('Email is required', 400));
     }
 
-    // Ensure table exists (simple check for robustness)
+    
     await pool.query(`
         CREATE TABLE IF NOT EXISTS Newsletters (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -17,7 +17,7 @@ exports.subscribe = catchAsync(async (req, res, next) => {
         )
     `);
 
-    // Check if already subscribed
+    
     const [existing] = await pool.query('SELECT * FROM Newsletters WHERE email = ?', [email]);
     if (existing.length > 0) {
         return next(new AppError('Email already subscribed', 400));

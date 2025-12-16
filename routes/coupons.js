@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const couponController = require('../controllers/couponController');
 
-const { protect, admin } = require('../middleware/auth'); // Import auth middleware
+const { protect, admin } = require('../middleware/auth'); 
 
 router.get('/trash', protect, admin, couponController.getTrashCoupons);
 router.put('/restore/:id', protect, admin, couponController.restoreCoupon);

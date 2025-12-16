@@ -44,7 +44,7 @@ exports.getAllProducts = catchAsync(async (req, res, next) => {
         params.push(searchTerm, searchTerm);
     }
 
-    // Add sorting (optional, but good for UX)
+    
     sql += ' ORDER BY p.createdAt DESC';
 
     const [products] = await pool.query(sql, params);
@@ -173,7 +173,7 @@ exports.updateProduct = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteProduct = catchAsync(async (req, res, next) => {
-    // SOFT DELETE
+    
     const [result] = await pool.query('UPDATE Products SET deletedAt = NOW() WHERE id = ?', [req.params.id]);
 
     if (result.affectedRows === 0) {
@@ -184,7 +184,7 @@ exports.deleteProduct = catchAsync(async (req, res, next) => {
 });
 
 exports.getTrashProducts = catchAsync(async (req, res, next) => {
-    // Admin only - Get deleted products
+    
     const [products] = await pool.query('SELECT * FROM Products WHERE deletedAt IS NOT NULL');
     res.json(products);
 });

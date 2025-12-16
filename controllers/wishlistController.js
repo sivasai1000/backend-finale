@@ -3,7 +3,7 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 exports.getWishlist = catchAsync(async (req, res, next) => {
-    // Auth check usually handled by middleware, but if code checks explicitly:
+    
     if (!req.user) return next(new AppError('Unauthorized', 401));
 
     const sql = `
@@ -52,7 +52,7 @@ exports.addToWishlist = catchAsync(async (req, res, next) => {
         [req.user.id, productId]
     );
 
-    // Fetch full product details to return
+    
     const sql = `
         SELECT w.*, 
                p.name as productName, p.price, p.imageUrl, p.description, p.stock

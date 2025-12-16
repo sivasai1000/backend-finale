@@ -66,7 +66,7 @@ exports.restoreCoupon = catchAsync(async (req, res, next) => {
 
 exports.validateCoupon = catchAsync(async (req, res, next) => {
     const { code, cartTotal } = req.body;
-    console.log(`Validating Coupon: ${code}`);
+    
 
     const [rows] = await pool.query('SELECT * FROM Coupons WHERE code = ? AND isActive = true AND deletedAt IS NULL', [code]);
     const coupon = rows[0];

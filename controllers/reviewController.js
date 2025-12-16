@@ -4,13 +4,13 @@ const AppError = require('../utils/appError');
 
 exports.createReview = catchAsync(async (req, res, next) => {
     const { productId, rating, comment, orderId } = req.body;
-    const userId = req.user.id; // From auth middleware
+    const userId = req.user.id; 
 
     if (!productId || !rating) {
         return next(new AppError('Product ID and Rating are required', 400));
     }
 
-    // Check for verified purchase (Completed Order)
+    
     let query = `
         SELECT oi.id, o.id as orderId
         FROM OrderItems oi
@@ -34,7 +34,7 @@ exports.createReview = catchAsync(async (req, res, next) => {
         return next(new AppError('You can only review products you have purchased and received.', 403));
     }
 
-    // Use the validated orderId
+    
     const validOrderId = orders[0].orderId;
 
     await pool.query(
@@ -59,7 +59,7 @@ exports.checkEligibility = catchAsync(async (req, res, next) => {
         LIMIT 1
     `, [userId, productId]);
 
-    // Also check if they already reviewed? Maybe let's just return if they can review.
+    
     const canReview = orders.length > 0;
 
     res.json({ canReview });
@@ -93,7 +93,7 @@ exports.getAllReviewsAdmin = catchAsync(async (req, res, next) => {
 
 exports.updateReviewStatus = catchAsync(async (req, res, next) => {
     const { id } = req.params;
-    const { status } = req.body; // 'approved' or 'rejected'
+    const { status } = req.body; 
 
     await pool.query('UPDATE Reviews SET status = ? WHERE id = ?', [status, id]);
 
@@ -101,7 +101,7 @@ exports.updateReviewStatus = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteReview = catchAsync(async (req, res, next) => {
-    // SOFT DELETE
+    
     const { id } = req.params;
     const [result] = await pool.query('UPDATE Reviews SET deletedAt = NOW() WHERE id = ?', [id]);
 
