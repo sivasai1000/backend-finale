@@ -92,12 +92,23 @@ exports.getProductByName = catchAsync(async (req, res, next) => {
     const name = decodeURIComponent(req.params.name);
 
     // Find product by exact name
-    const [rows] = await pool.query(`
+    let [rows] = await pool.query(`
         SELECT p.*, u.id as creatorId, u.name as creatorName, u.email as creatorEmail 
         FROM Products p 
         LEFT JOIN Users u ON p.addedBy = u.id
         WHERE p.name = ? AND p.deletedAt IS NULL
     `, [name]);
+
+    // If not found, try replacing spaces with hyphens (e.g., "T Shirt" -> "T-Shirt")
+    if (rows.length === 0) {
+        const hyphenatedName = name.replace(/\s+/g, '-');
+        [rows] = await pool.query(`
+            SELECT p.*, u.id as creatorId, u.name as creatorName, u.email as creatorEmail 
+            FROM Products p 
+            LEFT JOIN Users u ON p.addedBy = u.id
+            WHERE p.name = ? AND p.deletedAt IS NULL
+        `, [hyphenatedName]);
+    }
 
     if (rows.length === 0) {
         return next(new AppError('Product not found', 404));
