@@ -44,7 +44,7 @@ exports.getAllProducts = catchAsync(async (req, res, next) => {
         params.push(searchTerm, searchTerm);
     }
 
-    
+
     sql += ' ORDER BY p.createdAt DESC';
 
     const [products] = await pool.query(sql, params);
@@ -70,6 +70,34 @@ exports.getProductById = catchAsync(async (req, res, next) => {
         LEFT JOIN Users u ON p.addedBy = u.id
         WHERE p.id = ? AND p.deletedAt IS NULL
     `, [req.params.id]);
+
+    if (rows.length === 0) {
+        return next(new AppError('Product not found', 404));
+    }
+
+    const row = rows[0];
+    const product = { ...row };
+    if (row.creatorId) {
+        product.creator = { id: row.creatorId, name: row.creatorName, email: row.creatorEmail };
+    }
+    delete product.creatorId;
+    delete product.creatorName;
+    delete product.creatorEmail;
+
+    res.json(product);
+});
+
+exports.getProductByName = catchAsync(async (req, res, next) => {
+    // Decode the URL encoded name (e.g., "My%20Product" -> "My Product")
+    const name = decodeURIComponent(req.params.name);
+
+    // Find product by exact name
+    const [rows] = await pool.query(`
+        SELECT p.*, u.id as creatorId, u.name as creatorName, u.email as creatorEmail 
+        FROM Products p 
+        LEFT JOIN Users u ON p.addedBy = u.id
+        WHERE p.name = ? AND p.deletedAt IS NULL
+    `, [name]);
 
     if (rows.length === 0) {
         return next(new AppError('Product not found', 404));
@@ -173,7 +201,7 @@ exports.updateProduct = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteProduct = catchAsync(async (req, res, next) => {
-    
+
     const [result] = await pool.query('UPDATE Products SET deletedAt = NOW() WHERE id = ?', [req.params.id]);
 
     if (result.affectedRows === 0) {
@@ -184,7 +212,7 @@ exports.deleteProduct = catchAsync(async (req, res, next) => {
 });
 
 exports.getTrashProducts = catchAsync(async (req, res, next) => {
-    
+
     const [products] = await pool.query('SELECT * FROM Products WHERE deletedAt IS NOT NULL');
     res.json(products);
 });
