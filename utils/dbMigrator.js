@@ -5,7 +5,7 @@ async function verifyTables() {
     const connection = await pool.getConnection();
     try {
 
-      
+
         await connection.query(`
             CREATE TABLE IF NOT EXISTS Users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -243,6 +243,35 @@ async function verifyTables() {
                 FOREIGN KEY (receiver_id) REFERENCES Users(id) ON DELETE SET NULL
             )
         `);
+
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS Wishlists (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                userId INT NOT NULL,
+                productId INT NOT NULL,
+                createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (userId) REFERENCES Users(id) ON DELETE CASCADE,
+                FOREIGN KEY (productId) REFERENCES Products(id) ON DELETE CASCADE
+            )
+        `);
+
+        // Seed Pages if not exist
+        const defaultPages = [
+            { slug: 'contact', title: 'Contact Us', content: 'Contact us content here...' },
+            { slug: 'about', title: 'About Us', content: 'About us content here...' },
+            { slug: 'privacy', title: 'Privacy Policy', content: 'Privacy policy content here...' },
+            { slug: 'terms', title: 'Terms & Conditions', content: 'Terms content here...' }
+        ];
+
+        for (const page of defaultPages) {
+            const [rows] = await connection.query('SELECT id FROM Pages WHERE slug = ?', [page.slug]);
+            if (rows.length === 0) {
+                await connection.query('INSERT INTO Pages (slug, title, content) VALUES (?, ?, ?)',
+                    [page.slug, page.title, page.content]);
+                console.log(`Seeded page: ${page.slug}`);
+            }
+        }
 
 
     } catch (error) {
