@@ -11,11 +11,11 @@ router.put('/restore/:id', protect, admin, productController.restoreProduct);
 router.get('/', productController.getAllProducts);
 router.get('/famous', productController.getFamousProducts);
 router.get('/deals', productController.getDeals);
-router.post('/', upload.single('image'), productController.createProduct);
+router.post('/', upload.array('images', 4), productController.createProduct);
 router.get('/categories', productController.getCategories);
 router.get('/name/:name', productController.getProductByName); // New route for name-based fetch
 router.get('/:id', productController.getProductById);
-router.put('/:id', upload.single('image'), productController.updateProduct);
+router.put('/:id', upload.array('images', 4), productController.updateProduct);
 router.delete('/:id', productController.deleteProduct);
 
 module.exports = router;

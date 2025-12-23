@@ -57,6 +57,24 @@ exports.getAllProducts = catchAsync(async (req, res, next) => {
         delete product.creatorId;
         delete product.creatorName;
         delete product.creatorEmail;
+
+        // Handle multiple images
+        try {
+            if (product.imageUrl && (product.imageUrl.startsWith('[') || product.imageUrl.startsWith('{'))) {
+                const parsed = JSON.parse(product.imageUrl);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    product.images = parsed;
+                    product.imageUrl = parsed[0];
+                } else {
+                    product.images = [product.imageUrl];
+                }
+            } else {
+                product.images = product.imageUrl ? [product.imageUrl] : [];
+            }
+        } catch (e) {
+            product.images = product.imageUrl ? [product.imageUrl] : [];
+        }
+
         return product;
     });
 
@@ -83,6 +101,23 @@ exports.getProductById = catchAsync(async (req, res, next) => {
     delete product.creatorId;
     delete product.creatorName;
     delete product.creatorEmail;
+
+    // Handle multiple images
+    try {
+        if (product.imageUrl && (product.imageUrl.startsWith('[') || product.imageUrl.startsWith('{'))) {
+            const parsed = JSON.parse(product.imageUrl);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                product.images = parsed;
+                product.imageUrl = parsed[0];
+            } else {
+                product.images = [product.imageUrl];
+            }
+        } else {
+            product.images = product.imageUrl ? [product.imageUrl] : [];
+        }
+    } catch (e) {
+        product.images = product.imageUrl ? [product.imageUrl] : [];
+    }
 
     res.json(product);
 });
@@ -123,6 +158,23 @@ exports.getProductByName = catchAsync(async (req, res, next) => {
     delete product.creatorName;
     delete product.creatorEmail;
 
+    // Handle multiple images
+    try {
+        if (product.imageUrl && (product.imageUrl.startsWith('[') || product.imageUrl.startsWith('{'))) {
+            const parsed = JSON.parse(product.imageUrl);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                product.images = parsed;
+                product.imageUrl = parsed[0];
+            } else {
+                product.images = [product.imageUrl];
+            }
+        } else {
+            product.images = product.imageUrl ? [product.imageUrl] : [];
+        }
+    } catch (e) {
+        product.images = product.imageUrl ? [product.imageUrl] : [];
+    }
+
     res.json(product);
 });
 
@@ -153,14 +205,46 @@ exports.createProduct = catchAsync(async (req, res, next) => {
         name, description, price, mrp, discount, category, subcategory, stock, isFeatured
     } = req.body;
 
-    let imageUrl = null;
-    if (req.file) {
-        if (req.file.path.startsWith('http')) {
-            imageUrl = req.file.path;
-        } else {
-            imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+    // Handle image slots logic
+    let finalImages = [];
+    if (req.body.imageOrder) {
+        try {
+            const order = JSON.parse(req.body.imageOrder);
+            let fileIndex = 0;
+
+            // req.files is array of new files
+            const newFiles = req.files || [];
+
+            finalImages = order.map(item => {
+                if (item === 'new') {
+                    if (fileIndex < newFiles.length) {
+                        const file = newFiles[fileIndex++];
+                        return file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`;
+                    }
+                    return null;
+                }
+                return item; // Keep existing URL or null
+            }).filter(url => url !== null && url !== "");
+
+        } catch (e) {
+            console.error("Error parsing imageOrder", e);
+            // Fallback to simple append
+            if (req.files) {
+                req.files.forEach(file => {
+                    finalImages.push(file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`);
+                });
+            }
+        }
+    } else {
+        // Fallback legacy behavior
+        if (req.files) {
+            req.files.forEach(file => {
+                finalImages.push(file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`);
+            });
         }
     }
+
+    const imageUrl = finalImages.length > 0 ? JSON.stringify(finalImages) : null;
 
     const addedBy = req.user ? req.user.id : null;
 
@@ -173,7 +257,10 @@ exports.createProduct = catchAsync(async (req, res, next) => {
 
     const newProduct = {
         id: result.insertId,
-        name, description, price, mrp, discount, imageUrl, category, stock, isFeatured, addedBy
+        name, description, price, mrp, discount,
+        imageUrl: finalImages.length > 0 ? finalImages[0] : null,
+        images: finalImages,
+        category, stock, isFeatured, addedBy
     };
 
     res.status(201).json(newProduct);
@@ -190,14 +277,65 @@ exports.updateProduct = catchAsync(async (req, res, next) => {
         name, description, price, mrp, discount, category, subcategory, stock, isFeatured
     } = req.body;
 
-    let imageUrl = product.imageUrl;
-    if (req.file) {
-        if (req.file.path.startsWith('http')) {
-            imageUrl = req.file.path;
+    // Existing images (from DB)
+    let imageUrls = [];
+    try {
+        if (product.imageUrl && (product.imageUrl.startsWith('[') || product.imageUrl.startsWith('{'))) {
+            const parsed = JSON.parse(product.imageUrl);
+            if (Array.isArray(parsed)) imageUrls = parsed;
+            else imageUrls = [product.imageUrl];
+        } else if (product.imageUrl) {
+            imageUrls = [product.imageUrl];
+        }
+    } catch (e) {
+        imageUrls = product.imageUrl ? [product.imageUrl] : [];
+    }
+
+    // New uploaded images: Logic - if new files are provided, REPLACE existing? Or APPEND?
+    // User asked "can i add 4 images". Usually logic is: if user uploads new images, replace old ones or append.
+    // Simplifying: If new images uploaded, REPLACE ALL. Or simpler: Create form sends all images? 
+    // Backend logic: If req.files provided, use them. If not, keep old.
+    // Wait, with 4 images, user might want to replace just one. But handling that complexity without a complex form is hard.
+    // Standard simple logic: If you upload files, they replace the existing set.
+
+    // Handle image slots logic
+    let finalImages = [];
+
+    // Use imageOrder if present to merge existing and new images
+    if (req.body.imageOrder) {
+        try {
+            const order = JSON.parse(req.body.imageOrder);
+            let fileIndex = 0;
+            const newFiles = req.files || [];
+
+            finalImages = order.map(item => {
+                if (item === 'new') {
+                    if (fileIndex < newFiles.length) {
+                        const file = newFiles[fileIndex++];
+                        return file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`;
+                    }
+                    return null;
+                }
+                return item;
+            }).filter(url => url !== null && url !== "");
+        } catch (e) {
+            console.error("Error parsing imageOrder", e);
+            finalImages = imageUrls; // Start with existing
+            if (req.files) {
+                req.files.forEach(file => {
+                    finalImages.push(file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`);
+                });
+            }
+        }
+    } else {
+        if (req.files && req.files.length > 0) {
+            finalImages = req.files.map(file => file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`);
         } else {
-            imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+            finalImages = imageUrls;
         }
     }
+
+    const imageUrl = finalImages.length > 0 ? JSON.stringify(finalImages) : null;
 
     await pool.query(
         `UPDATE Products SET 
@@ -208,7 +346,26 @@ exports.updateProduct = catchAsync(async (req, res, next) => {
     );
 
     const [updatedRows] = await pool.query('SELECT * FROM Products WHERE id = ?', [req.params.id]);
-    res.json(updatedRows[0]);
+    const updatedProduct = { ...updatedRows[0] };
+
+    // Formatting response
+    try {
+        if (updatedProduct.imageUrl && (updatedProduct.imageUrl.startsWith('[') || updatedProduct.imageUrl.startsWith('{'))) {
+            const parsed = JSON.parse(updatedProduct.imageUrl);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                updatedProduct.images = parsed;
+                updatedProduct.imageUrl = parsed[0];
+            } else {
+                updatedProduct.images = [updatedProduct.imageUrl];
+            }
+        } else {
+            updatedProduct.images = updatedProduct.imageUrl ? [updatedProduct.imageUrl] : [];
+        }
+    } catch {
+        updatedProduct.images = updatedProduct.imageUrl ? [updatedProduct.imageUrl] : [];
+    }
+
+    res.json(updatedProduct);
 });
 
 exports.deleteProduct = catchAsync(async (req, res, next) => {
