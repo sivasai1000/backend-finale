@@ -179,23 +179,56 @@ exports.getProductByName = catchAsync(async (req, res, next) => {
 });
 
 exports.getCategories = catchAsync(async (req, res, next) => {
-    const [rows] = await pool.query("SELECT DISTINCT category, subcategory FROM Products WHERE category IS NOT NULL AND category != '' AND deletedAt IS NULL");
+    // Aggregation query to get categories with product count and a sample image
+    const [rows] = await pool.query(`
+        SELECT 
+            category, 
+            subcategory, 
+            COUNT(*) as productCount,
+            MAX(imageUrl) as sampleImage
+        FROM Products 
+        WHERE category IS NOT NULL AND category != '' AND deletedAt IS NULL 
+        GROUP BY category, subcategory 
+        ORDER BY productCount DESC
+    `);
 
     const categoryMap = {};
 
     rows.forEach(row => {
         if (!categoryMap[row.category]) {
-            categoryMap[row.category] = new Set();
+            categoryMap[row.category] = {
+                name: row.category,
+                subcategories: [],
+                totalCount: 0,
+                // Clean up the image URL (remove JSON array brackets/quotes if present)
+                image: null
+            };
         }
+        categoryMap[row.category].totalCount += row.productCount;
+
+        // Assign image if not already assigned (prioritizing the first non-null we encounter)
+        if (!categoryMap[row.category].image && row.sampleImage) {
+            let img = row.sampleImage;
+            try {
+                if (img.startsWith('[') || img.startsWith('{')) {
+                    const parsed = JSON.parse(img);
+                    img = Array.isArray(parsed) ? parsed[0] : img;
+                }
+            } catch (e) { }
+            categoryMap[row.category].image = img;
+        }
+
         if (row.subcategory) {
-            categoryMap[row.category].add(row.subcategory);
+            categoryMap[row.category].subcategories.push(row.subcategory);
         }
     });
 
-    const categories = Object.keys(categoryMap).map(cat => ({
-        name: cat,
-        subcategories: Array.from(categoryMap[cat])
-    }));
+    // Convert map to array and sort by totalCount descending
+    const categories = Object.values(categoryMap).sort((a, b) => b.totalCount - a.totalCount);
+
+    categories.forEach(cat => {
+        cat.subcategories = [...new Set(cat.subcategories)];
+    });
 
     res.json(categories);
 });
