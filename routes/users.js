@@ -6,7 +6,8 @@ const { protect, admin } = require('../middleware/auth');
 
 router.get('/', protect, admin, userController.getAllUsers);
 router.put('/:id/status', protect, admin, userController.toggleUserStatus);
-router.delete('/:id', protect, admin, userController.deleteUser); 
+router.put('/:id/role', protect, admin, userController.updateUserRole);
+router.delete('/:id', protect, admin, userController.deleteUser);
 
 
 router.get('/trash', protect, admin, userController.getTrashUsers);
