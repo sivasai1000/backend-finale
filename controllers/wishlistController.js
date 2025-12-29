@@ -3,7 +3,7 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 exports.getWishlist = catchAsync(async (req, res, next) => {
-    
+
     if (!req.user) return next(new AppError('Unauthorized', 401));
 
     const sql = `
@@ -28,6 +28,20 @@ exports.getWishlist = catchAsync(async (req, res, next) => {
             description: row.description,
             stock: row.stock
         };
+
+        // Handle multiple images - extract first image if stored as JSON array
+        try {
+            let img = item.Product.imageUrl;
+            if (img && (img.startsWith('[') || img.startsWith('{'))) {
+                const parsed = JSON.parse(img);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    item.Product.imageUrl = parsed[0];
+                }
+            }
+        } catch (e) {
+            // Keep original imageUrl if parsing fails
+        }
+
         return item;
     });
 
@@ -52,7 +66,7 @@ exports.addToWishlist = catchAsync(async (req, res, next) => {
         [req.user.id, productId]
     );
 
-    
+
     const sql = `
         SELECT w.*, 
                p.name as productName, p.price, p.imageUrl, p.description, p.stock
@@ -77,6 +91,20 @@ exports.addToWishlist = catchAsync(async (req, res, next) => {
         description: row.description,
         stock: row.stock
     };
+
+    // Handle multiple images - extract first image if stored as JSON array
+    try {
+        let img = item.Product.imageUrl;
+        if (img && (img.startsWith('[') || img.startsWith('{'))) {
+            const parsed = JSON.parse(img);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                item.Product.imageUrl = parsed[0];
+            }
+        }
+    } catch (e) {
+        // Keep original imageUrl if parsing fails
+    }
+
 
     res.status(201).json(item);
 });
