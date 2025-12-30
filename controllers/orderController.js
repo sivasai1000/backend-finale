@@ -159,6 +159,8 @@ exports.getAllOrders = catchAsync(async (req, res, next) => {
                 totalAmount: row.totalAmount,
                 status: row.status,
                 paymentId: row.paymentId,
+                trackingId: row.trackingId,
+                courierName: row.courierName,
                 address: typeof row.address === 'string' && row.address.startsWith('{') ? JSON.parse(row.address) : row.address,
                 userId: row.userId,
                 createdAt: row.createdAt,
