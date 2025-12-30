@@ -173,6 +173,16 @@ exports.getAllOrders = catchAsync(async (req, res, next) => {
         if (row.itemId) {
             const existingItem = ordersMap.get(row.id).OrderItems.find(i => i.id === row.itemId);
             if (!existingItem) {
+                let imageUrl = row.productImageUrl;
+                try {
+                    if (imageUrl && (imageUrl.startsWith('[') || imageUrl.startsWith('{'))) {
+                        const parsed = JSON.parse(imageUrl);
+                        imageUrl = Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : imageUrl;
+                    }
+                } catch (e) {
+                    // keep original if parse fails
+                }
+
                 ordersMap.get(row.id).OrderItems.push({
                     id: row.itemId,
                     productId: row.productId,
@@ -182,7 +192,7 @@ exports.getAllOrders = catchAsync(async (req, res, next) => {
                     Product: {
                         name: row.productName,
                         price: row.productPrice,
-                        imageUrl: row.productImageUrl
+                        imageUrl: imageUrl
                     }
                 });
             } else if (row.reviewId && !existingItem.isReviewed) {
