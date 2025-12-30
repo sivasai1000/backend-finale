@@ -64,3 +64,49 @@ exports.restoreUser = catchAsync(async (req, res, next) => {
 
     res.json({ message: 'User restored successfully' });
 });
+
+exports.updateProfile = catchAsync(async (req, res, next) => {
+    const userId = req.user.id;
+    const { name, mobile, address, bio, gender, dateOfBirth } = req.body;
+    let profilePicture = req.body.profilePicture; // If not updating image
+
+    if (req.file) {
+        // If image is uploaded
+        if (req.file.path) {
+            // Cloudinary or Disk storage
+            profilePicture = req.file.path;
+        } else {
+            // Fallback for some disk storage configs might be just filename
+            profilePicture = `/uploads/${req.file.filename}`;
+        }
+    }
+
+    // Prepare update query
+    let updateFields = [];
+    let queryParams = [];
+
+    if (name) { updateFields.push('name = ?'); queryParams.push(name); }
+    if (mobile) { updateFields.push('mobile = ?'); queryParams.push(mobile); }
+    if (address) { updateFields.push('address = ?'); queryParams.push(address); } // Expecting JSON string or object
+    if (bio) { updateFields.push('bio = ?'); queryParams.push(bio); }
+    if (gender) { updateFields.push('gender = ?'); queryParams.push(gender); }
+    if (dateOfBirth) { updateFields.push('dateOfBirth = ?'); queryParams.push(dateOfBirth); }
+    if (profilePicture) { updateFields.push('profilePicture = ?'); queryParams.push(profilePicture); }
+
+    if (updateFields.length === 0) {
+        return res.json({ message: 'No changes made', user: req.user });
+    }
+
+    queryParams.push(userId);
+
+    const query = `UPDATE Users SET ${updateFields.join(', ')} WHERE id = ?`;
+    await pool.query(query, queryParams);
+
+    // Fetch updated user
+    const [rows] = await pool.query('SELECT id, name, email, mobile, role, isActive, profilePicture, address, bio, gender, dateOfBirth, createdAt FROM Users WHERE id = ?', [userId]);
+
+    res.json({
+        message: 'Profile updated successfully',
+        user: rows[0]
+    });
+});

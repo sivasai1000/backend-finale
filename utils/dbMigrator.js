@@ -15,6 +15,11 @@ async function verifyTables() {
                 password VARCHAR(255) NOT NULL,
                 role VARCHAR(20) DEFAULT 'user',
                 isActive BOOLEAN DEFAULT true,
+                profilePicture TEXT,
+                address JSON,
+                bio TEXT,
+                gender VARCHAR(20),
+                dateOfBirth VARCHAR(20),
                 resetPasswordToken VARCHAR(255),
                 resetPasswordExpires BIGINT,
                 lastActiveAt DATETIME,
@@ -22,6 +27,20 @@ async function verifyTables() {
                 updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         `);
+
+        // Check for new columns in existing Users users table
+        const [userColumns] = await connection.query("SHOW COLUMNS FROM Users");
+        const hasProfilePicture = userColumns.some(col => col.Field === 'profilePicture');
+        const hasUserAddress = userColumns.some(col => col.Field === 'address');
+        const hasBio = userColumns.some(col => col.Field === 'bio');
+        const hasGender = userColumns.some(col => col.Field === 'gender');
+        const hasDob = userColumns.some(col => col.Field === 'dateOfBirth');
+
+        if (!hasProfilePicture) await connection.query("ALTER TABLE Users ADD COLUMN profilePicture TEXT");
+        if (!hasUserAddress) await connection.query("ALTER TABLE Users ADD COLUMN address JSON");
+        if (!hasBio) await connection.query("ALTER TABLE Users ADD COLUMN bio TEXT");
+        if (!hasGender) await connection.query("ALTER TABLE Users ADD COLUMN gender VARCHAR(20)");
+        if (!hasDob) await connection.query("ALTER TABLE Users ADD COLUMN dateOfBirth VARCHAR(20)");
 
         await connection.query(`
             CREATE TABLE IF NOT EXISTS Products (
@@ -141,26 +160,32 @@ async function verifyTables() {
         const [orderColumns] = await connection.query("SHOW COLUMNS FROM Orders");
         const hasAddress = orderColumns.some(col => col.Field === 'address');
         const hasPaymentId = orderColumns.some(col => col.Field === 'paymentId');
+        const hasTrackingId = orderColumns.some(col => col.Field === 'trackingId');
+        const hasCourierName = orderColumns.some(col => col.Field === 'courierName');
 
         if (!hasAddress) {
-
             await connection.query("ALTER TABLE Orders ADD COLUMN address JSON");
         }
 
         if (!hasPaymentId) {
-
             await connection.query("ALTER TABLE Orders ADD COLUMN paymentId VARCHAR(255)");
+        }
+
+        if (!hasTrackingId) {
+            await connection.query("ALTER TABLE Orders ADD COLUMN trackingId VARCHAR(100)");
+        }
+
+        if (!hasCourierName) {
+            await connection.query("ALTER TABLE Orders ADD COLUMN courierName VARCHAR(100)");
         }
 
         const hasUpdatedAt = orderColumns.some(col => col.Field === 'updatedAt');
         if (!hasUpdatedAt) {
-
             await connection.query("ALTER TABLE Orders ADD COLUMN updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
         }
 
         const hasCreatedAt = orderColumns.some(col => col.Field === 'createdAt');
         if (!hasCreatedAt) {
-
             await connection.query("ALTER TABLE Orders ADD COLUMN createdAt DATETIME DEFAULT CURRENT_TIMESTAMP");
         }
 
