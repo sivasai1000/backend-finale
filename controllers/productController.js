@@ -249,10 +249,17 @@ exports.createProduct = catchAsync(async (req, res, next) => {
         return null;
     };
 
-    // Just check all 4 slots
+    // Check all 4 slots for either File (new) or String (existing/external)
     for (let i = 1; i <= 4; i++) {
-        const path = getFilePath(`image${i}`);
-        if (path) finalImages.push(path);
+        const fieldName = `image${i}`;
+        const newPath = getFilePath(fieldName);
+
+        if (newPath) {
+            finalImages.push(newPath);
+        } else if (req.body[fieldName]) {
+            // If strictly a string URL is sent
+            finalImages.push(req.body[fieldName]);
+        }
     }
 
     const imageUrl = finalImages.length > 0 ? JSON.stringify(finalImages) : null;
@@ -321,26 +328,26 @@ exports.updateProduct = catchAsync(async (req, res, next) => {
         return null;
     };
 
-    // New Logic: Merge existing and new
-    // We assume 4 slots. If a new file comes for slot i, we use it. 
-    // If not, we use the existing image at slot i (if any).
+    // New Declarative Logic: 
+    // We expect the frontend to send us exactly what the state should be.
+    // image1: (File) -> Update
+    // image2: (String) -> Keep
+    // image3: (undefined) -> Delete
 
-    // Ensure we have a working array of size 4 for existing images to map against
-    // imageUrls might have fewer than 4 items.
+    for (let i = 1; i <= 4; i++) {
+        const fieldName = `image${i}`;
+        const newPath = getFilePath(fieldName);
 
-    for (let i = 0; i < 4; i++) {
-        const newPath = getFilePath(`image${i + 1}`);
         if (newPath) {
             finalImages.push(newPath);
-        } else {
-            // Keep existing if available
-            if (i < imageUrls.length) {
-                finalImages.push(imageUrls[i]);
-            }
+        } else if (req.body[fieldName]) {
+            // Keep existing URL if sent
+            finalImages.push(req.body[fieldName]);
         }
+        // If neither, it's considered deleted/empty for this slot
     }
 
-    // Filter out nulls if any crept in (though logic above shouldn't add nulls unless imageUrls had them)
+    // Filter out potential garbage if any
     finalImages = finalImages.filter(img => img !== null && img !== "");
 
     const imageUrl = finalImages.length > 0 ? JSON.stringify(finalImages) : null;
