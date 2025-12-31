@@ -239,41 +239,45 @@ exports.createProduct = catchAsync(async (req, res, next) => {
     } = req.body;
 
     // Handle image slots logic
+    // Handle image slots logic
     let finalImages = [];
+    // Helper to get path from named file field
+    const getFilePath = (field) => {
+        if (req.files && req.files[field] && req.files[field][0]) {
+            const file = req.files[field][0];
+            return file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`;
+        }
+        return null;
+    };
+
     if (req.body.imageOrder) {
         try {
             const order = JSON.parse(req.body.imageOrder);
-            let fileIndex = 0;
 
-            // req.files is array of new files
-            const newFiles = req.files || [];
-
-            finalImages = order.map(item => {
+            finalImages = order.map((item, index) => {
                 if (item === 'new') {
-                    if (fileIndex < newFiles.length) {
-                        const file = newFiles[fileIndex++];
-                        return file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`;
-                    }
-                    return null;
+                    // Check specifically for image1, image2, etc. corresponding to this slot
+                    // actually user might send image1 for slot 0, image2 for slot 1. 
+                    // But if they just send 'new' in order, we need to know which field name to look for.
+                    // The frontend MUST send image{index+1} for the slot at index.
+                    return getFilePath(`image${index + 1}`);
                 }
                 return item; // Keep existing URL or null
             }).filter(url => url !== null && url !== "");
 
         } catch (e) {
             console.error("Error parsing imageOrder", e);
-            // Fallback to simple append
-            if (req.files) {
-                req.files.forEach(file => {
-                    finalImages.push(file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`);
-                });
+            // Fallback: check all 4 slots
+            for (let i = 1; i <= 4; i++) {
+                const path = getFilePath(`image${i}`);
+                if (path) finalImages.push(path);
             }
         }
     } else {
-        // Fallback legacy behavior
-        if (req.files) {
-            req.files.forEach(file => {
-                finalImages.push(file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`);
-            });
+        // Fallback: just check all 4 slots
+        for (let i = 1; i <= 4; i++) {
+            const path = getFilePath(`image${i}`);
+            if (path) finalImages.push(path);
         }
     }
 
@@ -332,37 +336,55 @@ exports.updateProduct = catchAsync(async (req, res, next) => {
     // Standard simple logic: If you upload files, they replace the existing set.
 
     // Handle image slots logic
+    // Handle image slots logic
     let finalImages = [];
+
+    // Helper to get path from named file field
+    const getFilePath = (field) => {
+        if (req.files && req.files[field] && req.files[field][0]) {
+            const file = req.files[field][0];
+            return file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`;
+        }
+        return null;
+    };
 
     // Use imageOrder if present to merge existing and new images
     if (req.body.imageOrder) {
         try {
             const order = JSON.parse(req.body.imageOrder);
-            let fileIndex = 0;
-            const newFiles = req.files || [];
 
-            finalImages = order.map(item => {
+            finalImages = order.map((item, index) => {
                 if (item === 'new') {
-                    if (fileIndex < newFiles.length) {
-                        const file = newFiles[fileIndex++];
-                        return file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`;
-                    }
-                    return null;
+                    return getFilePath(`image${index + 1}`);
                 }
                 return item;
             }).filter(url => url !== null && url !== "");
         } catch (e) {
             console.error("Error parsing imageOrder", e);
-            finalImages = imageUrls; // Start with existing
-            if (req.files) {
-                req.files.forEach(file => {
-                    finalImages.push(file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`);
-                });
+            // If error, just take whatever new images we have + existing?
+            // Safer to just try to grab new images 1-4
+            finalImages = [...imageUrls]; // Start with existing
+            for (let i = 1; i <= 4; i++) {
+                const path = getFilePath(`image${i}`);
+                if (path) finalImages.push(path);
             }
         }
     } else {
-        if (req.files && req.files.length > 0) {
-            finalImages = req.files.map(file => file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`);
+        // No order provided, try to replace based on what's sent? 
+        // Or just append? Current logic was replace all or append. 
+        // With named fields, we can try to just grab them.
+        let hasNew = false;
+        const newImgs = [];
+        for (let i = 1; i <= 4; i++) {
+            const path = getFilePath(`image${i}`);
+            if (path) {
+                newImgs.push(path);
+                hasNew = true;
+            }
+        }
+
+        if (hasNew) {
+            finalImages = newImgs;
         } else {
             finalImages = imageUrls;
         }
