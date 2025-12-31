@@ -244,7 +244,8 @@ exports.createProduct = catchAsync(async (req, res, next) => {
     const getFilePath = (field) => {
         if (req.files && req.files[field] && req.files[field][0]) {
             const file = req.files[field][0];
-            return file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`;
+            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            return file.path.startsWith('http') ? file.path : `${baseUrl}/uploads/${file.filename}`;
         }
         return null;
     };
@@ -323,7 +324,8 @@ exports.updateProduct = catchAsync(async (req, res, next) => {
     const getFilePath = (field) => {
         if (req.files && req.files[field] && req.files[field][0]) {
             const file = req.files[field][0];
-            return file.path.startsWith('http') ? file.path : `http://localhost:5000/uploads/${file.filename}`;
+            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            return file.path.startsWith('http') ? file.path : `${baseUrl}/uploads/${file.filename}`;
         }
         return null;
     };
