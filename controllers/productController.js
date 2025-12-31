@@ -239,7 +239,6 @@ exports.createProduct = catchAsync(async (req, res, next) => {
     } = req.body;
 
     // Handle image slots logic
-    // Handle image slots logic
     let finalImages = [];
     // Helper to get path from named file field
     const getFilePath = (field) => {
@@ -250,35 +249,10 @@ exports.createProduct = catchAsync(async (req, res, next) => {
         return null;
     };
 
-    if (req.body.imageOrder) {
-        try {
-            const order = JSON.parse(req.body.imageOrder);
-
-            finalImages = order.map((item, index) => {
-                if (item === 'new') {
-                    // Check specifically for image1, image2, etc. corresponding to this slot
-                    // actually user might send image1 for slot 0, image2 for slot 1. 
-                    // But if they just send 'new' in order, we need to know which field name to look for.
-                    // The frontend MUST send image{index+1} for the slot at index.
-                    return getFilePath(`image${index + 1}`);
-                }
-                return item; // Keep existing URL or null
-            }).filter(url => url !== null && url !== "");
-
-        } catch (e) {
-            console.error("Error parsing imageOrder", e);
-            // Fallback: check all 4 slots
-            for (let i = 1; i <= 4; i++) {
-                const path = getFilePath(`image${i}`);
-                if (path) finalImages.push(path);
-            }
-        }
-    } else {
-        // Fallback: just check all 4 slots
-        for (let i = 1; i <= 4; i++) {
-            const path = getFilePath(`image${i}`);
-            if (path) finalImages.push(path);
-        }
+    // Just check all 4 slots
+    for (let i = 1; i <= 4; i++) {
+        const path = getFilePath(`image${i}`);
+        if (path) finalImages.push(path);
     }
 
     const imageUrl = finalImages.length > 0 ? JSON.stringify(finalImages) : null;
@@ -336,7 +310,6 @@ exports.updateProduct = catchAsync(async (req, res, next) => {
     // Standard simple logic: If you upload files, they replace the existing set.
 
     // Handle image slots logic
-    // Handle image slots logic
     let finalImages = [];
 
     // Helper to get path from named file field
@@ -348,47 +321,27 @@ exports.updateProduct = catchAsync(async (req, res, next) => {
         return null;
     };
 
-    // Use imageOrder if present to merge existing and new images
-    if (req.body.imageOrder) {
-        try {
-            const order = JSON.parse(req.body.imageOrder);
+    // New Logic: Merge existing and new
+    // We assume 4 slots. If a new file comes for slot i, we use it. 
+    // If not, we use the existing image at slot i (if any).
 
-            finalImages = order.map((item, index) => {
-                if (item === 'new') {
-                    return getFilePath(`image${index + 1}`);
-                }
-                return item;
-            }).filter(url => url !== null && url !== "");
-        } catch (e) {
-            console.error("Error parsing imageOrder", e);
-            // If error, just take whatever new images we have + existing?
-            // Safer to just try to grab new images 1-4
-            finalImages = [...imageUrls]; // Start with existing
-            for (let i = 1; i <= 4; i++) {
-                const path = getFilePath(`image${i}`);
-                if (path) finalImages.push(path);
-            }
-        }
-    } else {
-        // No order provided, try to replace based on what's sent? 
-        // Or just append? Current logic was replace all or append. 
-        // With named fields, we can try to just grab them.
-        let hasNew = false;
-        const newImgs = [];
-        for (let i = 1; i <= 4; i++) {
-            const path = getFilePath(`image${i}`);
-            if (path) {
-                newImgs.push(path);
-                hasNew = true;
-            }
-        }
+    // Ensure we have a working array of size 4 for existing images to map against
+    // imageUrls might have fewer than 4 items.
 
-        if (hasNew) {
-            finalImages = newImgs;
+    for (let i = 0; i < 4; i++) {
+        const newPath = getFilePath(`image${i + 1}`);
+        if (newPath) {
+            finalImages.push(newPath);
         } else {
-            finalImages = imageUrls;
+            // Keep existing if available
+            if (i < imageUrls.length) {
+                finalImages.push(imageUrls[i]);
+            }
         }
     }
+
+    // Filter out nulls if any crept in (though logic above shouldn't add nulls unless imageUrls had them)
+    finalImages = finalImages.filter(img => img !== null && img !== "");
 
     const imageUrl = finalImages.length > 0 ? JSON.stringify(finalImages) : null;
 
