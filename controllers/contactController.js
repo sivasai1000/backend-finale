@@ -8,7 +8,15 @@ exports.getContact = catchAsync(async (req, res, next) => {
     if (rows.length === 0) {
         return next(new AppError('Contact page not found', 404));
     }
-    res.json(rows[0]);
+    const page = rows[0];
+    try {
+        if (page.content) {
+            page.content = JSON.parse(page.content);
+        }
+    } catch (e) {
+        // Keep as string if parsing fails
+    }
+    res.json(page);
 });
 
 exports.updateContact = catchAsync(async (req, res, next) => {
